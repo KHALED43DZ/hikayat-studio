@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f3d34">
+<link rel="manifest" href="manifest.json">
+<title>استوديو الحكايات</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef2ef;--card:#fff;--ink:#12221d;--mut:#5d6f68;--line:#d5ddd8;--g:#0f3d34;--g2:#1c6b58;--r:#c0392b;--ok:#1e8a5a}
+@media(prefers-color-scheme:dark){:root{--bg:#0d1714;--card:#15241f;--ink:#e8f0ec;--mut:#93a89f;--line:#26392f;--g:#2fa384;--g2:#3cc7a2}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Tajawal,system-ui,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{background:#0f3d34;color:#fff;padding:18px 16px}
+header .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+header h1{margin:0;font-size:22px;font-weight:800}
+#ver{font-size:12px;background:rgba(255,255,255,.16);padding:4px 10px;border-radius:999px;direction:ltr;white-space:nowrap}
+#install{display:none;background:#fff;color:#0f3d34;border-radius:10px;padding:12px 14px;margin-top:12px;align-items:center;justify-content:space-between;gap:10px;font-size:14px}
+#install.on{display:flex}
+#install button{background:#0f3d34;color:#fff;padding:8px 16px;min-height:40px}
+#install .x{background:transparent;color:#0f3d34;padding:8px;min-height:40px}
+header p{margin:4px 0 0;font-size:13px;opacity:.8}
+main{max-width:760px;margin:0 auto;padding:14px}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+h2{margin:0 0 10px;font-size:16px}
+button,input,select{font:inherit}
+button{border:0;border-radius:8px;padding:10px 14px;background:var(--g);color:#fff;cursor:pointer;min-height:44px}
+button.alt{background:transparent;color:var(--g2);border:1px solid var(--g2)}
+button.done{background:var(--ok);color:#fff;border-color:var(--ok)}
+input[type=text],input[type=password],select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);min-height:44px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row>*{flex:1}
+.keys{list-style:none;padding:0;margin:8px 0 0;font-size:13px}
+.keys li{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--line);direction:ltr}
+.keys .st{color:var(--mut)}
+.chars{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.chars button{text-align:right;display:flex;flex-direction:column;gap:2px;background:var(--bg);color:var(--ink);border:1px solid var(--line)}
+.chars b{color:var(--g2)}
+.chars small{color:var(--mut)}
+.scene{display:grid;grid-template-columns:44px 1fr 1fr;gap:8px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.scene:first-of-type{border-top:0}
+.num{font-weight:800;font-size:20px;color:var(--r);text-align:center}
+.ref{grid-column:2/4;font-size:12px;color:var(--mut)}
+details{grid-column:1/4;font-size:13px;color:var(--mut)}
+details p{margin:6px 0;line-height:1.7;direction:ltr;text-align:left}
+#status{font-size:14px;min-height:20px;margin-top:8px}
+#status.err{color:var(--r)}
+.toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+.hide{display:none}
+</style>
+</head>
+<body>
+<header>
+  <div class="top"><h1>استوديو الحكايات</h1><span id="ver"></span></div>
+  <p>من النص إلى برومبتات جاهزة للنسخ</p>
+  <div id="install"><span id="installMsg">ثبّت التطبيق على جهازك لتفتحه كأي تطبيق.</span><span><button id="installBtn">تثبيت</button><button class="x" id="installX" aria-label="إغلاق">✕</button></span></div>
+</header>
+<main>
+
+<section>
+  <h2>مفاتيح Gemini</h2>
+  <div class="row"><input id="keyIn" type="password" placeholder="الصق مفتاح API" autocomplete="off" dir="ltr"><button id="addKey" style="flex:0 0 auto">أضف المفتاح</button></div>
+  <ul class="keys" id="keyList"></ul>
+  <select id="model" style="margin-top:8px"><option value="gemini-2.5-flash">gemini-2.5-flash</option><option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option></select>
+</section>
+
+<section>
+  <h2>الحلقة</h2>
+  <div class="row"><input id="file" type="file" accept=".txt,text/plain"></div>
+  <div class="row" style="margin-top:8px"><button id="analyze">حلّل النص</button><button class="alt" id="exportBtn">تصدير المشروع</button><button class="alt" id="importBtn">استيراد</button></div>
+  <input id="importFile" type="file" accept=".json" class="hide">
+  <div id="status"></div>
+</section>
+
+<section id="charsBox" class="hide"><h2>الشخصيات والأماكن الثانوية</h2><div class="chars" id="chars"></div></section>
+<section id="scenesBox" class="hide"><h2 id="epTitle">المشاهد</h2><div id="scenes"></div></section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ رقم الإصدار: غيّره هنا فقط عند كل تحديث ============ */
+const APP_VERSION = '1.1.0';
+document.getElementById('ver').textContent = 'v' + APP_VERSION;
+
+/* ============ زر التثبيت ============ */
+const isStandalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+let deferredPrompt = null;
+if(!isStandalone && !localStorage.getItem('installDismissed')){
+  addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;install.classList.add('on')});
+  if(isIOS){installMsg.textContent='للتثبيت: اضغط زر المشاركة في Safari ثم «إضافة إلى الشاشة الرئيسية».';installBtn.style.display='none';install.classList.add('on')}
+}
+installBtn.onclick=async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;install.classList.remove('on')};
+installX.onclick=()=>{install.classList.remove('on');localStorage.setItem('installDismissed','1')};
+addEventListener('appinstalled',()=>install.classList.remove('on'));
+
+/* ============ 1) البرومبت الأساسي ============ */
+const SYSTEM_PROMPT = `أنت مخرج ومساعد إنتاج لفيديوهات حكايات قصيرة بالدارجة الجزائرية.
+مهمتك: تحليل نص الحلقة وتقسيمه إلى 12 مقطعاً (كل مقطع 8-10 ثوانٍ)، وإخراج JSON فقط.
+
+القواعد:
+1. أخرج JSON صالحاً فقط، بلا شرح ولا Markdown ولا علامات \`\`\`.
+2. الشخصيات الرئيسية: اذكر وصفها البصري الثابت داخل كل برومبت (العمر، الملامح، اللباس، الألوان) بنفس الصياغة حرفياً في كل مشهد لضمان الثبات.
+3. الشخصيات والأماكن الثانوية التي تظهر في أكثر من مشهد: أعطها رمزاً حرفياً (A, B, C...) وبرومبت مرجعي مستقل لتوليد صورتها مرة واحدة.
+4. إذا ظهر عنصر ثانوي في مشهد، اذكر رمزه في الحقل refs ولا تعد وصفه كاملاً في البرومبت؛ اكتب "(refer to image A)".
+5. first_frame_prompt: برومبت صورة أولى للمشهد، بالإنجليزية، سينمائي، يحدد الكادر والإضاءة والحالة والأسلوب، دون أي نص مكتوب داخل الصورة.
+6. motion_prompt: بالإنجليزية، يصف حركة الكاميرا وحركة الشخصيات خلال 8-10 ثوانٍ، ويتضمن عند الحاجة الحوار بين علامتي تنصيص بالدارجة الجزائرية مكتوباً بالحروف العربية.
+7. حافظ على تسلسل أحداث النص وروحه ولا تضف أحداثاً من عندك. اختصر ليتسع في 12 مقطعاً.
+8. أجب بنفس الأسماء الواردة في النص.
+
+شكل الإخراج:
+{
+ "episode_number": رقم الحلقة أو null,
+ "title": "عنوان الحلقة بالعربية",
+ "style_guide": "جملة واحدة بالإنجليزية تحدد الأسلوب البصري الموحد",
+ "secondary": [ {"code":"A","type":"character|place|object","name":"الاسم","prompt":"English reference-image prompt"} ],
+ "scenes": [ {"n":1,"summary":"سطر عربي","first_frame_prompt":"...","motion_prompt":"...","refs":["A"]} ]
+}`;
+
+/* ============ 2) مجمّع المفاتيح مع التبديل عند 429 ============ */
+const store = {
+  get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},
+  set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))
+};
+let keys = store.get('keys',[]);       // [{key, coolUntil, fails}]
+let project = store.get('project',null);
+let copied = store.get('copied',{});
+
+const mask = k => k.slice(0,6)+'••••'+k.slice(-4);
+function renderKeys(){
+  const now=Date.now();
+  keyList.innerHTML = keys.map((k,i)=>{
+    const wait = Math.ceil((k.coolUntil-now)/1000);
+    const st = wait>0 ? `راحة ${wait}ث` : 'جاهز';
+    return `<li><span>${mask(k.key)}</span><span class="st">${st} <a href="#" data-i="${i}" style="color:var(--r)">حذف</a></span></li>`;
+  }).join('') || '<li style="direction:rtl">لا توجد مفاتيح بعد</li>';
+}
+keyList.onclick=e=>{const i=e.target.dataset.i;if(i===undefined)return;e.preventDefault();keys.splice(i,1);store.set('keys',keys);renderKeys()};
+addKey.onclick=()=>{const v=keyIn.value.trim();if(!v)return;if(!keys.some(k=>k.key===v))keys.push({key:v,coolUntil:0,fails:0});store.set('keys',keys);keyIn.value='';renderKeys()};
+setInterval(renderKeys,1000);
+
+async function callGemini(userText){
+  if(!keys.length) throw new Error('أضف مفتاح Gemini واحداً على الأقل.');
+  const model = document.getElementById('model').value;
+  const body = JSON.stringify({
+    systemInstruction:{parts:[{text:SYSTEM_PROMPT}]},
+    contents:[{role:'user',parts:[{text:'نص الحلقة:\n\n'+userText}]}],
+    generationConfig:{responseMimeType:'application/json',temperature:0.7}
+  });
+  const order = keys.map((k,i)=>i).sort((a,b)=>keys[a].coolUntil-keys[b].coolUntil);
+  let lastErr='';
+  for(const i of order){
+    const k=keys[i];
+    if(k.coolUntil>Date.now()) continue;
+    setStatus(`جارٍ التحليل بالمفتاح ${mask(k.key)} ...`);
+    try{
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${k.key}`,
+        {method:'POST',headers:{'Content-Type':'application/json'},body});
+      if(r.status===429||r.status===503){k.coolUntil=Date.now()+(r.status===429?60000:15000);k.fails++;store.set('keys',keys);renderKeys();lastErr='الحد مستهلك، جرّبنا مفتاحاً آخر.';continue}
+      if(r.status===400||r.status===403){k.coolUntil=Date.now()+3600000;store.set('keys',keys);renderKeys();lastErr='مفتاح غير صالح، تم تجاوزه.';continue}
+      if(!r.ok) throw new Error('خطأ '+r.status);
+      const j = await r.json();
+      const t = j.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('')||'';
+      return t;
+    }catch(e){lastErr=e.message}
+  }
+  throw new Error(lastErr||'كل المفاتيح في فترة راحة. انتظر قليلاً أو أضف مفتاحاً.');
+}
+
+function parseJSON(t){
+  t=t.replace(/```json|```/g,'').trim();
+  const a=t.indexOf('{'),b=t.lastIndexOf('}');
+  return JSON.parse(t.slice(a,b+1));
+}
+
+/* ============ 3) الواجهة والنسخ ============ */
+let fileText='';
+file.onchange=async e=>{const f=e.target.files[0];if(f){fileText=await f.text();setStatus(`تم تحميل «${f.name}» (${fileText.length} حرف)`)}};
+function setStatus(m,err){status.textContent=m;status.className=err?'err':''}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),1400)}
+
+async function copy(text,btn,id){
+  try{await navigator.clipboard.writeText(text)}catch{
+    const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove()}
+  btn.classList.add('done');copied[id]=1;store.set('copied',copied);toast('تم النسخ');
+}
+
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function render(){
+  if(!project) return;
+  const sg = project.style_guide ? project.style_guide+'. ' : '';
+  charsBox.classList.toggle('hide',!project.secondary?.length);
+  chars.innerHTML = (project.secondary||[]).map((c,i)=>
+    `<button data-id="sec${i}" class="${copied['sec'+i]?'done':''}" data-text="${esc(sg+c.prompt)}"><b>${esc(c.code)}</b>${esc(c.name)}<small>${esc(c.type)}</small></button>`).join('');
+  scenesBox.classList.remove('hide');
+  epTitle.textContent = (project.episode_number?`الحلقة ${project.episode_number} — `:'')+(project.title||'المشاهد');
+  scenes.innerHTML = project.scenes.map(s=>`
+    <div class="scene">
+      <div class="num">${s.n}</div>
+      <button data-id="f${s.n}" class="${copied['f'+s.n]?'done':''}" data-text="${esc(sg+s.first_frame_prompt)}">صورة أولى</button>
+      <button data-id="m${s.n}" class="${copied['m'+s.n]?'done':''}" data-text="${esc(s.motion_prompt)}">تحريك M${s.n}</button>
+      ${s.refs?.length?`<div class="ref">المراجع: ${s.refs.map(esc).join('، ')}</div>`:''}
+      <details><summary>${esc(s.summary||'عرض النص')}</summary><p>${esc(s.first_frame_prompt)}</p><p>${esc(s.motion_prompt)}</p></details>
+    </div>`).join('');
+}
+document.addEventListener('click',e=>{const b=e.target.closest('button[data-text]');if(b)copy(b.dataset.text,b,b.dataset.id)});
+
+analyze.onclick=async()=>{
+  if(!fileText) return setStatus('ارفع ملف .txt أولاً.',1);
+  analyze.disabled=true;
+  try{
+    const raw = await callGemini(fileText);
+    project = parseJSON(raw); copied={}; store.set('copied',copied);
+    store.set('project',project); render(); setStatus('تم التحليل: '+project.scenes.length+' مشهداً.');
+  }catch(e){setStatus(e.message,1)}
+  analyze.disabled=false;
+};
+
+exportBtn.onclick=()=>{
+  if(!project) return setStatus('لا يوجد مشروع للتصدير.',1);
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify({project,copied},null,1)],{type:'application/json'}));
+  a.download=`episode-${project.episode_number||'x'}.json`;a.click();
+};
+importBtn.onclick=()=>importFile.click();
+importFile.onchange=async e=>{try{const d=JSON.parse(await e.target.files[0].text());project=d.project;copied=d.copied||{};store.set('project',project);store.set('copied',copied);render();setStatus('تم الاستيراد.')}catch{setStatus('ملف غير صالح.',1)}};
+
+renderKeys(); render();
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v='+APP_VERSION).catch(()=>{});
+</script>
+</body>
+</html>
