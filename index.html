@@ -11,225 +11,226 @@
 :root{--bg:#eef2ef;--card:#fff;--ink:#12221d;--mut:#5d6f68;--line:#d5ddd8;--g:#0f3d34;--g2:#1c6b58;--r:#c0392b;--ok:#1e8a5a}
 @media(prefers-color-scheme:dark){:root{--bg:#0d1714;--card:#15241f;--ink:#e8f0ec;--mut:#93a89f;--line:#26392f;--g:#2fa384;--g2:#3cc7a2}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:Tajawal,system-ui,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
-header{background:#0f3d34;color:#fff;padding:18px 16px}
-header .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
-header h1{margin:0;font-size:22px;font-weight:800}
-#ver{font-size:12px;background:rgba(255,255,255,.16);padding:4px 10px;border-radius:999px;direction:ltr;white-space:nowrap}
-#install{display:none;background:#fff;color:#0f3d34;border-radius:10px;padding:12px 14px;margin-top:12px;align-items:center;justify-content:space-between;gap:10px;font-size:14px}
-#install.on{display:flex}
-#install button{background:#0f3d34;color:#fff;padding:8px 16px;min-height:40px}
-#install .x{background:transparent;color:#0f3d34;padding:8px;min-height:40px}
-header p{margin:4px 0 0;font-size:13px;opacity:.8}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Tajawal,system-ui,sans-serif;padding-bottom:calc(80px + env(safe-area-inset-bottom))}
+header{position:sticky;top:0;z-index:5;background:#0f3d34;color:#fff;padding:calc(10px + env(safe-area-inset-top)) 14px 10px}
+.bar{display:flex;justify-content:space-between;align-items:center;max-width:760px;margin:0 auto}
+.brand{display:flex;gap:10px;align-items:center;cursor:pointer;font-size:19px;font-weight:800}
+#ver{font-size:12px;font-weight:400;background:rgba(255,255,255,.16);padding:3px 9px;border-radius:999px;direction:ltr}
+#gear{background:rgba(255,255,255,.14);padding:0;width:44px;font-size:20px}
 main{max-width:760px;margin:0 auto;padding:14px}
-section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
-h2{margin:0 0 10px;font-size:16px}
-button,input,select{font:inherit}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+h2{margin:0 0 8px;font-size:16px}
+label{display:block;font-size:14px;margin:10px 0 4px;color:var(--mut)}
+button,input,select,textarea{font:inherit}
 button{border:0;border-radius:8px;padding:10px 14px;background:var(--g);color:#fff;cursor:pointer;min-height:44px}
+button:disabled{opacity:.5}
 button.alt{background:transparent;color:var(--g2);border:1px solid var(--g2)}
 button.done{background:var(--ok);color:#fff;border-color:var(--ok)}
-input[type=text],input[type=password],select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);min-height:44px}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);min-height:44px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
 .row>*{flex:1}
-.keys{list-style:none;padding:0;margin:8px 0 0;font-size:13px}
-.keys li{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--line);direction:ltr}
-.keys .st{color:var(--mut)}
+.mut{color:var(--mut)}.small{font-size:12px}
+.keys{list-style:none;padding:0;margin:8px 0;font-size:13px}
+.keys li{display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid var(--line);direction:ltr}
 .chars{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .chars button{text-align:right;display:flex;flex-direction:column;gap:2px;background:var(--bg);color:var(--ink);border:1px solid var(--line)}
 .chars b{color:var(--g2)}
-.chars small{color:var(--mut)}
+.chars button.done{background:var(--ok);color:#fff}
+.ep{border-top:1px solid var(--line);padding:12px 0}
+.ep textarea{margin:6px 0}
 .scene{display:grid;grid-template-columns:44px 1fr 1fr;gap:8px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
-.scene:first-of-type{border-top:0}
 .num{font-weight:800;font-size:20px;color:var(--r);text-align:center}
 .ref{grid-column:2/4;font-size:12px;color:var(--mut)}
 details{grid-column:1/4;font-size:13px;color:var(--mut)}
-details p{margin:6px 0;line-height:1.7;direction:ltr;text-align:left}
-#status{font-size:14px;min-height:20px;margin-top:8px}
-#status.err{color:var(--r)}
-.toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
+details p,.en{margin:6px 0;line-height:1.7;direction:ltr;text-align:left}
+.sum{grid-column:1/4;font-size:13px}
+#status{position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));padding:12px;border-radius:10px;background:var(--ink);color:var(--bg);font-size:14px;display:none;z-index:9}
+#status.on{display:block}#status.err{background:var(--r);color:#fff}#status.busy::before{content:"⏳ "}
+.toast{position:fixed;bottom:calc(80px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
+#install{display:none;background:var(--g);color:#fff;border-radius:10px;padding:12px;margin-bottom:14px;align-items:center;justify-content:space-between;gap:10px;font-size:14px}
+#install.on{display:flex}#install button{background:#fff;color:#0f3d34;padding:8px 14px;min-height:40px}#install .x{background:transparent;color:#fff}
 .hide{display:none}
 </style>
 </head>
 <body>
-<header>
-  <div class="top"><h1>استوديو الحكايات</h1><span id="ver"></span></div>
-  <p>من النص إلى برومبتات جاهزة للنسخ</p>
-  <div id="install"><span id="installMsg">ثبّت التطبيق على جهازك لتفتحه كأي تطبيق.</span><span><button id="installBtn">تثبيت</button><button class="x" id="installX" aria-label="إغلاق">✕</button></span></div>
-</header>
+<header><div class="bar"><div class="brand" id="brand">استوديو الحكايات <span id="ver"></span></div><button id="gear" aria-label="الإعدادات">⚙️</button></div></header>
 <main>
+<div id="install"><span id="installMsg">ثبّت التطبيق على جهازك لتفتحه كأي تطبيق.</span><span><button id="installBtn">تثبيت</button><button class="x" id="installX" aria-label="إغلاق">✕</button></span></div>
 
-<section>
-  <h2>مفاتيح Gemini</h2>
-  <div class="row"><input id="keyIn" type="password" placeholder="الصق مفتاح API" autocomplete="off" dir="ltr"><button id="addKey" style="flex:0 0 auto">أضف المفتاح</button></div>
-  <ul class="keys" id="keyList"></ul>
-  <select id="model" style="margin-top:8px"><option value="gemini-2.5-flash">gemini-2.5-flash</option><option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option></select>
+<section id="v-home">
+ <div class="card">
+  <h2>معلومات عامة عن المسلسل</h2>
+  <p class="mut small">اكتب ما تعرفه فقط، والباقي يبتكره التطبيق.</p>
+  <label>اسم المسلسل (اختياري)</label><input id="f_name">
+  <label>الفكرة العامة</label><textarea id="f_idea" rows="3" placeholder="مثال: أطفال يبحثون عن كنز في قرية جبلية"></textarea>
+  <label>الفئة العمرية</label><select id="f_age"><option>3-5 سنوات</option><option selected>6-9 سنوات</option><option>10-14 سنة</option><option>العائلة كلها</option></select>
+  <label>النوع</label><select id="f_genre"><option>مغامرة</option><option>كوميديا</option><option>تراث وحكايات شعبية</option><option>تشويق وألغاز</option><option>قيم وأخلاق</option></select>
+  <label>البيئة الجزائرية</label><input id="f_place" placeholder="قرية جبلية، صحراء، مدينة قديمة...">
+  <label>عدد الحلقات</label><input id="f_eps" type="number" min="1" max="20" value="5">
+  <label>القيم المراد إيصالها</label><input id="f_values" placeholder="الصدق، التعاون...">
+  <label>ملاحظات أو شخصيات تريدها</label><textarea id="f_notes" rows="2"></textarea>
+  <button data-act="mk" style="width:100%;margin-top:14px">أنشئ المسلسل</button>
+ </div>
 </section>
-
-<section>
-  <h2>الحلقة</h2>
-  <div class="row"><input id="file" type="file" accept=".txt,text/plain"></div>
-  <div class="row" style="margin-top:8px"><button id="analyze">حلّل النص</button><button class="alt" id="exportBtn">تصدير المشروع</button><button class="alt" id="importBtn">استيراد</button></div>
-  <input id="importFile" type="file" accept=".json" class="hide">
-  <div id="status"></div>
-</section>
-
-<section id="charsBox" class="hide"><h2>الشخصيات والأماكن الثانوية</h2><div class="chars" id="chars"></div></section>
-<section id="scenesBox" class="hide"><h2 id="epTitle">المشاهد</h2><div id="scenes"></div></section>
+<section id="v-series" class="hide"></section>
+<section id="v-ep" class="hide"></section>
+<section id="v-set" class="hide"></section>
+<input type="file" id="impf" accept=".json" class="hide">
 </main>
-<div class="toast" id="toast"></div>
+<div id="status"></div><div class="toast" id="toast"></div>
 
 <script>
-/* ============ رقم الإصدار: غيّره هنا فقط عند كل تحديث ============ */
-const APP_VERSION = '1.1.0';
-document.getElementById('ver').textContent = 'v' + APP_VERSION;
-
-/* ============ زر التثبيت ============ */
-const isStandalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
-const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-let deferredPrompt = null;
-if(!isStandalone && !localStorage.getItem('installDismissed')){
-  addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;install.classList.add('on')});
-  if(isIOS){installMsg.textContent='للتثبيت: اضغط زر المشاركة في Safari ثم «إضافة إلى الشاشة الرئيسية».';installBtn.style.display='none';install.classList.add('on')}
-}
-installBtn.onclick=async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;install.classList.remove('on')};
-installX.onclick=()=>{install.classList.remove('on');localStorage.setItem('installDismissed','1')};
-addEventListener('appinstalled',()=>install.classList.remove('on'));
-
-/* ============ 1) البرومبت الأساسي ============ */
-const SYSTEM_PROMPT = `أنت مخرج ومساعد إنتاج لفيديوهات حكايات قصيرة بالدارجة الجزائرية.
-مهمتك: تحليل نص الحلقة وتقسيمه إلى 12 مقطعاً (كل مقطع 8-10 ثوانٍ)، وإخراج JSON فقط.
-
-القواعد:
-1. أخرج JSON صالحاً فقط، بلا شرح ولا Markdown ولا علامات \`\`\`.
-2. الشخصيات الرئيسية: اذكر وصفها البصري الثابت داخل كل برومبت (العمر، الملامح، اللباس، الألوان) بنفس الصياغة حرفياً في كل مشهد لضمان الثبات.
-3. الشخصيات والأماكن الثانوية التي تظهر في أكثر من مشهد: أعطها رمزاً حرفياً (A, B, C...) وبرومبت مرجعي مستقل لتوليد صورتها مرة واحدة.
-4. إذا ظهر عنصر ثانوي في مشهد، اذكر رمزه في الحقل refs ولا تعد وصفه كاملاً في البرومبت؛ اكتب "(refer to image A)".
-5. first_frame_prompt: برومبت صورة أولى للمشهد، بالإنجليزية، سينمائي، يحدد الكادر والإضاءة والحالة والأسلوب، دون أي نص مكتوب داخل الصورة.
-6. motion_prompt: بالإنجليزية، يصف حركة الكاميرا وحركة الشخصيات خلال 8-10 ثوانٍ، ويتضمن عند الحاجة الحوار بين علامتي تنصيص بالدارجة الجزائرية مكتوباً بالحروف العربية.
-7. حافظ على تسلسل أحداث النص وروحه ولا تضف أحداثاً من عندك. اختصر ليتسع في 12 مقطعاً.
-8. أجب بنفس الأسماء الواردة في النص.
-
-شكل الإخراج:
-{
- "episode_number": رقم الحلقة أو null,
- "title": "عنوان الحلقة بالعربية",
- "style_guide": "جملة واحدة بالإنجليزية تحدد الأسلوب البصري الموحد",
- "secondary": [ {"code":"A","type":"character|place|object","name":"الاسم","prompt":"English reference-image prompt"} ],
- "scenes": [ {"n":1,"summary":"سطر عربي","first_frame_prompt":"...","motion_prompt":"...","refs":["A"]} ]
-}`;
-
-/* ============ 2) مجمّع المفاتيح مع التبديل عند 429 ============ */
-const store = {
-  get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},
-  set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))
-};
-let keys = store.get('keys',[]);       // [{key, coolUntil, fails}]
-let project = store.get('project',null);
-let copied = store.get('copied',{});
-
-const mask = k => k.slice(0,6)+'••••'+k.slice(-4);
-function renderKeys(){
-  const now=Date.now();
-  keyList.innerHTML = keys.map((k,i)=>{
-    const wait = Math.ceil((k.coolUntil-now)/1000);
-    const st = wait>0 ? `راحة ${wait}ث` : 'جاهز';
-    return `<li><span>${mask(k.key)}</span><span class="st">${st} <a href="#" data-i="${i}" style="color:var(--r)">حذف</a></span></li>`;
-  }).join('') || '<li style="direction:rtl">لا توجد مفاتيح بعد</li>';
-}
-keyList.onclick=e=>{const i=e.target.dataset.i;if(i===undefined)return;e.preventDefault();keys.splice(i,1);store.set('keys',keys);renderKeys()};
-addKey.onclick=()=>{const v=keyIn.value.trim();if(!v)return;if(!keys.some(k=>k.key===v))keys.push({key:v,coolUntil:0,fails:0});store.set('keys',keys);keyIn.value='';renderKeys()};
-setInterval(renderKeys,1000);
-
-async function callGemini(userText){
-  if(!keys.length) throw new Error('أضف مفتاح Gemini واحداً على الأقل.');
-  const model = document.getElementById('model').value;
-  const body = JSON.stringify({
-    systemInstruction:{parts:[{text:SYSTEM_PROMPT}]},
-    contents:[{role:'user',parts:[{text:'نص الحلقة:\n\n'+userText}]}],
-    generationConfig:{responseMimeType:'application/json',temperature:0.7}
-  });
-  const order = keys.map((k,i)=>i).sort((a,b)=>keys[a].coolUntil-keys[b].coolUntil);
-  let lastErr='';
-  for(const i of order){
-    const k=keys[i];
-    if(k.coolUntil>Date.now()) continue;
-    setStatus(`جارٍ التحليل بالمفتاح ${mask(k.key)} ...`);
-    try{
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${k.key}`,
-        {method:'POST',headers:{'Content-Type':'application/json'},body});
-      if(r.status===429||r.status===503){k.coolUntil=Date.now()+(r.status===429?60000:15000);k.fails++;store.set('keys',keys);renderKeys();lastErr='الحد مستهلك، جرّبنا مفتاحاً آخر.';continue}
-      if(r.status===400||r.status===403){k.coolUntil=Date.now()+3600000;store.set('keys',keys);renderKeys();lastErr='مفتاح غير صالح، تم تجاوزه.';continue}
-      if(!r.ok) throw new Error('خطأ '+r.status);
-      const j = await r.json();
-      const t = j.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('')||'';
-      return t;
-    }catch(e){lastErr=e.message}
-  }
-  throw new Error(lastErr||'كل المفاتيح في فترة راحة. انتظر قليلاً أو أضف مفتاحاً.');
-}
-
-function parseJSON(t){
-  t=t.replace(/```json|```/g,'').trim();
-  const a=t.indexOf('{'),b=t.lastIndexOf('}');
-  return JSON.parse(t.slice(a,b+1));
-}
-
-/* ============ 3) الواجهة والنسخ ============ */
-let fileText='';
-file.onchange=async e=>{const f=e.target.files[0];if(f){fileText=await f.text();setStatus(`تم تحميل «${f.name}» (${fileText.length} حرف)`)}};
-function setStatus(m,err){status.textContent=m;status.className=err?'err':''}
-function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),1400)}
-
-async function copy(text,btn,id){
-  try{await navigator.clipboard.writeText(text)}catch{
-    const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove()}
-  btn.classList.add('done');copied[id]=1;store.set('copied',copied);toast('تم النسخ');
-}
-
+const APP_VERSION='1.2.0'; /* غيّره عند كل تحديث */
+const $=id=>document.getElementById(id);
+$('ver').textContent='v'+APP_VERSION;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const store={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
+let S=Object.assign({keys:'',model:'gemini-2.5-flash',darija:'full',dialogue:'clip',refs:'image',scenes:12,secs:10},store.get('settings',{}));
+let P=store.get('project',null),cool=store.get('cool',{}),cur='home',prev='home',curEp=null,busyF=false,rot=0;
+const save=()=>store.set('project',P);
 
-function render(){
-  if(!project) return;
-  const sg = project.style_guide ? project.style_guide+'. ' : '';
-  charsBox.classList.toggle('hide',!project.secondary?.length);
-  chars.innerHTML = (project.secondary||[]).map((c,i)=>
-    `<button data-id="sec${i}" class="${copied['sec'+i]?'done':''}" data-text="${esc(sg+c.prompt)}"><b>${esc(c.code)}</b>${esc(c.name)}<small>${esc(c.type)}</small></button>`).join('');
-  scenesBox.classList.remove('hide');
-  epTitle.textContent = (project.episode_number?`الحلقة ${project.episode_number} — `:'')+(project.title||'المشاهد');
-  scenes.innerHTML = project.scenes.map(s=>`
-    <div class="scene">
-      <div class="num">${s.n}</div>
-      <button data-id="f${s.n}" class="${copied['f'+s.n]?'done':''}" data-text="${esc(sg+s.first_frame_prompt)}">صورة أولى</button>
-      <button data-id="m${s.n}" class="${copied['m'+s.n]?'done':''}" data-text="${esc(s.motion_prompt)}">تحريك M${s.n}</button>
-      ${s.refs?.length?`<div class="ref">المراجع: ${s.refs.map(esc).join('، ')}</div>`:''}
-      <details><summary>${esc(s.summary||'عرض النص')}</summary><p>${esc(s.first_frame_prompt)}</p><p>${esc(s.motion_prompt)}</p></details>
-    </div>`).join('');
+/* ---------- تثبيت التطبيق ---------- */
+const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+let dp=null;
+if(!standalone&&!localStorage.getItem('installDismissed')){
+ addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;$('install').classList.add('on')});
+ if(/iphone|ipad|ipod/i.test(navigator.userAgent)){$('installMsg').textContent='للتثبيت: زر المشاركة في Safari ثم «إضافة إلى الشاشة الرئيسية».';$('installBtn').style.display='none';$('install').classList.add('on')}
 }
-document.addEventListener('click',e=>{const b=e.target.closest('button[data-text]');if(b)copy(b.dataset.text,b,b.dataset.id)});
+$('installBtn').onclick=async()=>{if(!dp)return;dp.prompt();await dp.userChoice;dp=null;$('install').classList.remove('on')};
+$('installX').onclick=()=>{$('install').classList.remove('on');localStorage.setItem('installDismissed','1')};
 
-analyze.onclick=async()=>{
-  if(!fileText) return setStatus('ارفع ملف .txt أولاً.',1);
-  analyze.disabled=true;
+/* ---------- واجهة عامة ---------- */
+function say(m,t){const s=$('status');s.textContent=m;s.className=m?'on '+(t||''):'';if(t==='ok')setTimeout(()=>{if(s.textContent===m)s.className=''},4000)}
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),1300)}
+function lock(b){busyF=b;document.querySelectorAll('button[data-act]').forEach(x=>x.disabled=b)}
+function show(v){cur=v;['home','series','ep','set'].forEach(x=>$('v-'+x).classList.toggle('hide',x!==v));
+ if(v==='series')renderSeries();if(v==='ep')renderEp();if(v==='set')renderSet();scrollTo(0,0)}
+$('brand').onclick=()=>show(P?'series':'home');
+$('gear').onclick=()=>{if(cur!=='set')prev=cur;show('set')};
+
+/* ---------- مجمّع المفاتيح ---------- */
+const keyArr=()=>S.keys.split('\n').map(k=>k.trim()).filter(Boolean);
+const mask=k=>k.length>10?k.slice(0,5)+'••••'+k.slice(-4):'••••';
+async function gem(system,user){
+ const ks=keyArr();
+ if(!ks.length)throw new Error('أضف مفتاح Gemini واحداً على الأقل من الإعدادات ⚙️');
+ const now=Date.now(),ready=ks.filter(k=>(cool[k]||0)<=now);
+ if(!ready.length)throw new Error('كل المفاتيح في فترة راحة. انتظر دقيقة أو أضف مفتاحاً.');
+ const body=JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:'user',parts:[{text:user}]}],generationConfig:{responseMimeType:'application/json',temperature:0.8}});
+ let last='';
+ for(let i=0;i<ready.length;i++){
+  const k=ready[(rot+i)%ready.length];
+  say(`جارٍ الاتصال بـ Gemini (مفتاح ${ks.indexOf(k)+1} من ${ks.length})... قد يستغرق دقيقة`,'busy');
   try{
-    const raw = await callGemini(fileText);
-    project = parseJSON(raw); copied={}; store.set('copied',copied);
-    store.set('project',project); render(); setStatus('تم التحليل: '+project.scenes.length+' مشهداً.');
-  }catch(e){setStatus(e.message,1)}
-  analyze.disabled=false;
-};
+   const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(S.model)}:generateContent?key=${k}`,{method:'POST',headers:{'Content-Type':'application/json'},body});
+   if(r.ok){const j=await r.json();const t=(j.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('');rot++;if(t)return t;last='رد فارغ: '+(j.promptFeedback?.blockReason||j.candidates?.[0]?.finishReason||'');continue}
+   const e=(await r.text()).slice(0,220);last=`خطأ ${r.status}: ${e}`;
+   if(r.status===404)throw new Error('اسم النموذج غير صحيح. عدّله من الإعدادات. '+e);
+   cool[k]=now+(r.status===429?60000:r.status===503?15000:3600000);store.set('cool',cool);
+  }catch(e){if(e.message.startsWith('اسم'))throw e;last=e.message}
+ }
+ throw new Error(last||'فشل الاتصال');
+}
+function parse(t){t=t.replace(/```json|```/g,'');const a=t.indexOf('{'),b=t.lastIndexOf('}');try{return JSON.parse(t.slice(a,b+1))}catch{throw new Error('رد Gemini ليس JSON صالحاً (ربما انقطع لطوله). أعد المحاولة.')}}
 
-exportBtn.onclick=()=>{
-  if(!project) return setStatus('لا يوجد مشروع للتصدير.',1);
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([JSON.stringify({project,copied},null,1)],{type:'application/json'}));
-  a.download=`episode-${project.episode_number||'x'}.json`;a.click();
-};
-importBtn.onclick=()=>importFile.click();
-importFile.onchange=async e=>{try{const d=JSON.parse(await e.target.files[0].text());project=d.project;copied=d.copied||{};store.set('project',project);store.set('copied',copied);render();setStatus('تم الاستيراد.')}catch{setStatus('ملف غير صالح.',1)}};
+/* ---------- البرومبتات ---------- */
+const bibleSys=f=>`أنت كاتب ومخرج لمسلسلات جزائرية قصيرة تُنتج كفيديوهات. من المعلومات العامة التي يقدمها المستخدم ابتكر مسلسلاً أصلياً (لا تقتبس عملاً موجوداً) فيه تراث جزائري حقيقي، ومحتواه آمن ومناسب للفئة العمرية. أخرج JSON فقط بلا شرح ولا Markdown.
+- main: 2-4 شخصيات رئيسية، لكل منها name بالعربية وdesc بالإنجليزية وصف بصري ثابت (العمر، الملامح، الشعر، اللباس بألوان محددة).
+- secondary: 4-8 شخصيات وأماكن ثانوية متكررة، لكل منها code حرفي (A,B,C...) وtype (character|place|object) وname عربي وprompt إنجليزي لصورة مرجعية.
+- style_guide: جملة إنجليزية واحدة للأسلوب البصري الموحد، ولا نصوص مكتوبة داخل الصور.
+- episodes: بالضبط ${f.eps} حلقة، لكل منها n وtitle وvalue (القيمة التربوية) وsummary عربي من 3-4 جمل. تتصاعد الأحداث وتنتهي بخاتمة مرضية.
+{"title":"","logline":"","style_guide":"","main":[{"name":"","desc":""}],"secondary":[{"code":"A","type":"","name":"","prompt":""}],"episodes":[{"n":1,"title":"","value":"","summary":""}]}`;
 
-renderKeys(); render();
-if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js?v='+APP_VERSION).catch(()=>{});
+const epSys=()=>`أنت مخرج فيديو. حوّل ملخص الحلقة إلى ${S.scenes} مشهداً بالضبط، مدة كل مشهد ${S.secs} ثوانٍ، وحافظ على اتساق القصة مع الحلقات السابقة. أخرج JSON فقط بلا شرح.
+- الحوار بالدارجة الجزائرية ${S.darija==='full'?'الكاملة':'القريبة من الفصحى'}، مكتوباً بالحروف العربية.
+- first_frame_prompt: إنجليزي سينمائي للصورة الأولى (الكادر، الإضاءة، الحالة). انسخ الوصف الثابت للشخصيات الرئيسية الظاهرة حرفياً من الدليل. لا نصوص داخل الصورة.
+- motion_prompt: إنجليزي، حركة الكاميرا والشخصيات خلال ${S.secs} ثوانٍ. ${S.dialogue==='clip'?'ضمّن حواراً منطوقاً قصيراً بين علامتي تنصيص مع اسم المتكلم يناسب المدة.':'لا تضمّن حواراً منطوقاً، واكتب تعليقاً صوتياً قصيراً في الحقل voice.'}
+- ${S.refs==='image'?'للعناصر الثانوية اكتب في البرومبت (refer to image X) بدل إعادة وصفها.':'كرر وصف العناصر الثانوية كاملاً داخل البرومبت ولا تستخدم الرموز في النص.'}
+- refs: رموز الثانويات الظاهرة. أول مشهد يجذب الانتباه، وآخره يمهد للحلقة التالية (أو يختم المسلسل إن كانت الأخيرة).
+{"title":"","scenes":[{"n":1,"summary":"سطر عربي","first_frame_prompt":"","motion_prompt":"","voice":"","refs":["A"]}]}`;
+
+/* ---------- إنشاء الدليل والحلقات ---------- */
+async function makeBible(f){
+ if(!f){f={name:$('f_name').value,idea:$('f_idea').value,age:$('f_age').value,genre:$('f_genre').value,place:$('f_place').value,eps:Math.min(20,Math.max(1,+$('f_eps').value||5)),values:$('f_values').value,notes:$('f_notes').value};
+  if(!f.idea.trim()&&!f.name.trim())return say('اكتب فكرة عامة أو اسماً على الأقل.','err')}
+ if(P&&!confirm('سيُستبدل المشروع الحالي. متابعة؟'))return;
+ lock(true);
+ try{
+  const b=parse(await gem(bibleSys(f),`المعلومات العامة:\n${JSON.stringify(f,null,1)}`));
+  if(!Array.isArray(b.episodes)||!b.episodes.length)throw new Error('الدليل ناقص. أعد المحاولة.');
+  P={form:f,bible:b,eps:{},copied:{}};save();show('series');say('تم إنشاء الدليل. راجعه ثم اختر حلقة.','ok');
+ }catch(e){say(e.message,'err')}
+ lock(false);
+}
+async function makeEp(n){
+ if(P.eps[n]&&!confirm('ستُستبدل الحلقة الحالية. متابعة؟'))return;
+ const b=P.bible,ep=b.episodes.find(e=>e.n===n);
+ const prevS=b.episodes.filter(e=>e.n<n).map(e=>`${e.n}. ${e.title}: ${e.summary}`).join('\n')||'لا يوجد';
+ lock(true);
+ try{
+  const r=parse(await gem(epSys(),`الدليل:\n${JSON.stringify({style_guide:b.style_guide,main:b.main,secondary:b.secondary})}\n\nالحلقات السابقة:\n${prevS}\n\nالحلقة المطلوبة:\n${JSON.stringify(ep)}`));
+  if(!Array.isArray(r.scenes)||!r.scenes.length)throw new Error('لم يُرجع Gemini مشاهد. أعد المحاولة.');
+  P.eps[n]=r;Object.keys(P.copied).filter(k=>k.startsWith(n+':')).forEach(k=>delete P.copied[k]);
+  save();curEp=n;show('ep');say(`تم: ${r.scenes.length} مشهداً`,'ok');
+ }catch(e){say(e.message,'err')}
+ lock(false);
+}
+
+/* ---------- العرض ---------- */
+const cp=id=>P.copied[id]?' done':'';
+function renderSeries(){
+ const b=P.bible,sg=b.style_guide?b.style_guide+'. ':'';
+ $('v-series').innerHTML=`<div class="card"><h2>${esc(b.title)}</h2><p class="mut">${esc(b.logline)}</p><div class="row"><button class="alt" data-act="newb">أعد توليد الدليل</button><button class="alt" data-act="new">مشروع جديد</button></div></div>
+ <div class="card"><h2>الشخصيات الرئيسية</h2>${(b.main||[]).map(c=>`<details style="display:block"><summary>${esc(c.name)}</summary><p>${esc(c.desc)}</p></details>`).join('')}</div>
+ <div class="card"><h2>الثانوية: انسخ برومبت الصورة المرجعية</h2><div class="chars">${(b.secondary||[]).map(c=>`<button class="${cp('s:'+c.code)}" data-id="s:${esc(c.code)}" data-text="${esc(sg+c.prompt)}"><b>${esc(c.code)}</b>${esc(c.name)}<small class="mut">${esc(c.type)}</small></button>`).join('')}</div></div>
+ <div class="card"><h2>الحلقات</h2>${b.episodes.map(e=>`<div class="ep"><b>${e.n}. ${esc(e.title)}</b> <span class="mut small">${esc(e.value||'')}</span><textarea data-sum="${e.n}" rows="3">${esc(e.summary)}</textarea><div class="row"><button data-act="gen" data-n="${e.n}">${P.eps[e.n]?'افتح الحلقة':'ولّد الحلقة'}</button>${P.eps[e.n]?`<button class="alt" data-act="regen" data-n="${e.n}">أعد التوليد</button>`:''}</div></div>`).join('')}</div>`;
+}
+function renderEp(){
+ const ep=P.eps[curEp],sg=P.bible.style_guide?P.bible.style_guide+'. ':'';
+ $('v-ep').innerHTML=`<div class="card"><button class="alt" data-act="back">‹ الحلقات</button><h2 style="margin-top:12px">الحلقة ${curEp}: ${esc(ep.title)}</h2>${ep.scenes.map(s=>`<div class="scene"><div class="num">${s.n}</div>
+ <button class="${cp(curEp+':f'+s.n)}" data-id="${curEp}:f${s.n}" data-text="${esc(sg+s.first_frame_prompt)}">صورة أولى</button>
+ <button class="${cp(curEp+':m'+s.n)}" data-id="${curEp}:m${s.n}" data-text="${esc(s.motion_prompt)}">تحريك M${s.n}</button>
+ ${(s.refs||[]).length?`<div class="ref">المراجع: ${s.refs.map(esc).join('، ')}</div>`:''}
+ <div class="sum">${esc(s.summary)}</div>
+ <details><summary>عرض النصوص</summary><p>${esc(s.first_frame_prompt)}</p><p>${esc(s.motion_prompt)}</p>${s.voice?`<p dir="rtl" style="text-align:right">${esc(s.voice)}</p>`:''}</details></div>`).join('')}</div>`;
+}
+const opt=(k,a)=>a.map(([v,t])=>`<option value="${v}"${String(S[k])===String(v)?' selected':''}>${t}</option>`).join('');
+function renderSet(){
+ $('v-set').innerHTML=`<div class="card"><button class="alt" data-act="back2">‹ رجوع</button><h2 style="margin-top:12px">مفاتيح Gemini</h2>
+ <label>مفتاح واحد في كل سطر</label><textarea data-set="keys" rows="5" dir="ltr" placeholder="AIza...">${esc(S.keys)}</textarea><ul class="keys" id="kl"></ul>
+ <p class="mut small">الأفضل مفاتيح من حسابات أو مشاريع Google مختلفة، فالحد المجاني غالباً يُحسب على المشروع.</p></div>
+ <div class="card"><h2>النموذج</h2><input data-set="model" value="${esc(S.model)}" dir="ltr"></div>
+ <div class="card"><h2>الإنتاج</h2>
+ <label>مستوى الدارجة</label><select data-set="darija">${opt('darija',[['full','دارجة جزائرية كاملة'],['light','قريبة من الفصحى']])}</select>
+ <label>الحوار</label><select data-set="dialogue">${opt('dialogue',[['clip','ينطقه نموذج الفيديو داخل المقطع'],['voice','تعليق صوتي يُضاف لاحقاً']])}</select>
+ <label>العناصر الثانوية</label><select data-set="refs">${opt('refs',[['image','أداتي تقبل صوراً مرجعية'],['text','نص فقط (تكرار الوصف)']])}</select>
+ <label>عدد المشاهد</label><input data-set="scenes" type="number" min="4" max="20" value="${S.scenes}">
+ <label>مدة المقطع بالثواني</label><input data-set="secs" type="number" min="4" max="12" value="${S.secs}"></div>
+ <div class="card"><h2>المشروع</h2><div class="row"><button data-act="exp">تصدير</button><button class="alt" data-act="imp">استيراد</button><button class="alt" data-act="wipe">مسح المشروع</button></div></div>`;
+ keyList();
+}
+function keyList(){const el=$('kl');if(!el)return;const n=Date.now();el.innerHTML=keyArr().map(k=>{const w=Math.ceil(((cool[k]||0)-n)/1000);return `<li><span>${mask(k)}</span><span class="mut">${w>0?'راحة '+w+'ث':'جاهز'}</span></li>`}).join('')||'<li style="direction:rtl">لا توجد مفاتيح</li>'}
+setInterval(()=>{if(cur==='set')keyList()},1000);
+
+/* ---------- الأحداث ---------- */
+async function copy(b){const t=b.dataset.text;try{await navigator.clipboard.writeText(t)}catch{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove()}
+ b.classList.add('done');P.copied[b.dataset.id]=1;save();toast('تم النسخ')}
+document.addEventListener('click',e=>{
+ const c=e.target.closest('button[data-text]');if(c)return copy(c);
+ const b=e.target.closest('[data-act]');if(!b||busyF)return;
+ const n=+b.dataset.n,A={mk:()=>makeBible(),newb:()=>makeBible(P.form),new:()=>show('home'),
+  gen:()=>{if(P.eps[n]){curEp=n;show('ep')}else makeEp(n)},regen:()=>makeEp(n),back:()=>show('series'),back2:()=>show(prev),
+  imp:()=>$('impf').click(),wipe:()=>{if(confirm('حذف المشروع الحالي؟')){P=null;localStorage.removeItem('project');show('home')}},
+  exp:()=>{if(!P)return say('لا يوجد مشروع.','err');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(P,null,1)],{type:'application/json'}));a.download=(P.bible.title||'project')+'.json';a.click()}};
+ A[b.dataset.act]?.();
+});
+document.addEventListener('input',e=>{const k=e.target.dataset.set;if(!k)return;S[k]=e.target.type==='number'?+e.target.value:e.target.value;store.set('settings',S);if(k==='keys')keyList()});
+document.addEventListener('change',e=>{const n=e.target.dataset.sum;if(n&&P){P.bible.episodes.find(x=>x.n==n).summary=e.target.value;save()}});
+$('impf').onchange=async e=>{try{const d=JSON.parse(await e.target.files[0].text());if(!d.bible?.episodes)throw 0;P=d;P.eps=P.eps||{};P.copied=P.copied||{};save();show('series');say('تم الاستيراد.','ok')}catch{say('ملف غير صالح.','err')}};
+
+show(P?'series':'home');
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js?v='+APP_VERSION).catch(()=>{});
 </script>
 </body>
 </html>
