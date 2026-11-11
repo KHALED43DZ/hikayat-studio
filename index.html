@@ -81,12 +81,12 @@ details p,.en{margin:6px 0;line-height:1.7;direction:ltr;text-align:left}
 <div id="status"></div><div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION='1.2.1'; /* غيّره عند كل تحديث */
+const APP_VERSION='1.2.2'; /* غيّره عند كل تحديث */
 const $=id=>document.getElementById(id);
 $('ver').textContent='v'+APP_VERSION;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const store={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
-let S=Object.assign({keys:'',model:'gemini-3.8-flash',darija:'full',dialogue:'clip',refs:'image',scenes:12,secs:10},store.get('settings',{}));
+let S=Object.assign({keys:'',model:'gemini-3.8-flash',fallback:'gemini-3.7-flash',darija:'full',dialogue:'clip',refs:'image',scenes:12,secs:10},store.get('settings',{}));
 let P=store.get('project',null),cool=store.get('cool2',{}),cur='home',prev='home',curEp=null,busyF=false,rot=0;
 const save=()=>store.set('project',P);
 
@@ -113,26 +113,34 @@ $('gear').onclick=()=>{if(cur!=='set')prev=cur;show('set')};
 const mdl=()=>S.model.trim().toLowerCase().replace(/^models\//,'').replace(/\s+/g,'-');
 const keyArr=()=>S.keys.split('\n').map(k=>k.trim()).filter(Boolean);
 const mask=k=>k.length>10?k.slice(0,5)+'••••'+k.slice(-4):'••••';
+const norm=m=>(m||'').trim().toLowerCase().replace(/^models\//,'').replace(/\s+/g,'-');
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function gem(system,user){
  const ks=keyArr();
  if(!ks.length)throw new Error('أضف مفتاح Gemini واحداً على الأقل من الإعدادات ⚙️');
- const now=Date.now(),ready=ks.filter(k=>(cool[k]||0)<=now);
- if(!ready.length)throw new Error('كل المفاتيح في فترة راحة. انتظر دقيقة أو أضف مفتاحاً.');
  const body=JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:'user',parts:[{text:user}]}],generationConfig:{responseMimeType:'application/json'}});
  let last='';
- for(let i=0;i<ready.length;i++){
-  const k=ready[(rot+i)%ready.length];
-  say(`جارٍ الاتصال بـ Gemini (مفتاح ${ks.indexOf(k)+1} من ${ks.length})... قد يستغرق دقيقة`,'busy');
-  try{
-   const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(mdl())}:generateContent?key=${k}`,{method:'POST',headers:{'Content-Type':'application/json'},body});
-   if(r.ok){const j=await r.json();const t=(j.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('');rot++;if(t)return t;last='رد فارغ: '+(j.promptFeedback?.blockReason||j.candidates?.[0]?.finishReason||'');continue}
-   const e=(await r.text()).slice(0,220);last=`خطأ ${r.status}: ${e}`;
-   if(r.status===429||r.status===503){cool[k]=now+(r.status===429?60000:15000);store.set('cool2',cool)}
-   else if(r.status===403||/API key not valid|API_KEY_INVALID/.test(e)){cool[k]=now+3600000;store.set('cool2',cool)}
-   else{const f=new Error(last+(r.status===404||/model/i.test(e)?'\nتحقق من اسم النموذج في الإعدادات (مثل gemini-3.8-flash).':''));f.fatal=1;throw f}
-  }catch(e){if(e.fatal)throw e;last=e.message}
+ for(let round=0;round<4;round++){
+  const now=Date.now(),ready=ks.filter(k=>(cool[k]||0)<=now);
+  if(!ready.length)throw new Error(last||'كل المفاتيح في فترة راحة. انتظر دقيقة أو أضف مفتاحاً.');
+  const fb=round>=2&&norm(S.fallback)&&norm(S.fallback)!==norm(S.model),model=fb?norm(S.fallback):norm(S.model);
+  let over=false;
+  for(let i=0;i<ready.length;i++){
+   const k=ready[(rot+i)%ready.length];
+   say(`جارٍ الاتصال بـ ${model} (مفتاح ${ks.indexOf(k)+1} من ${ks.length}) ... قد يستغرق دقيقة`,'busy');
+   try{
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${k}`,{method:'POST',headers:{'Content-Type':'application/json'},body});
+    if(r.ok){const j=await r.json();const t=(j.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('');rot++;if(t)return t;last='رد فارغ: '+(j.promptFeedback?.blockReason||j.candidates?.[0]?.finishReason||'');continue}
+    const e=(await r.text()).slice(0,220);last=`خطأ ${r.status}: ${e}`;
+    if(r.status===503){over=true;continue}
+    if(r.status===429){cool[k]=Date.now()+60000;store.set('cool2',cool);continue}
+    if(r.status===403||/API key not valid|API_KEY_INVALID/.test(e)){cool[k]=Date.now()+3600000;store.set('cool2',cool);continue}
+    const f=new Error(last+(r.status===404||/model/i.test(e)?'\nتحقق من اسم النموذج في الإعدادات (مثل gemini-3.8-flash).':''));f.fatal=1;throw f;
+   }catch(e){if(e.fatal)throw e;last=e.message;over=true}
+  }
+  if(round<3&&over){const w=8*(round+1);for(let t=w;t>0;t--){say(`الخادم مشغول. إعادة المحاولة بعد ${t} ثانية (${round+2} من 4)${round>=1&&norm(S.fallback)?' بالنموذج الاحتياطي':''}`,'busy');await sleep(1000)}}
  }
- throw new Error(last||'فشل الاتصال');
+ throw new Error(last+'\nالخادم مشغول، جرّب بعد قليل أو غيّر النموذج من الإعدادات.');
 }
 function parse(t){t=t.replace(/```json|```/g,'');const a=t.indexOf('{'),b=t.lastIndexOf('}');try{return JSON.parse(t.slice(a,b+1))}catch{throw new Error('رد Gemini ليس JSON صالحاً (ربما انقطع لطوله). أعد المحاولة.')}}
 
@@ -203,6 +211,7 @@ function renderSet(){
  <label>مفتاح واحد في كل سطر</label><textarea data-set="keys" rows="5" dir="ltr" placeholder="AIza...">${esc(S.keys)}</textarea><ul class="keys" id="kl"></ul>
  <p class="mut small">الأفضل مفاتيح من حسابات أو مشاريع Google مختلفة، فالحد المجاني غالباً يُحسب على المشروع.</p></div>
  <div class="card"><h2>النموذج</h2><input data-set="model" list="ml" value="${esc(S.model)}" dir="ltr"><datalist id="ml"><option value="gemini-3.8-flash"><option value="gemini-3.7-flash"></datalist>
+ <label>نموذج احتياطي عند ازدحام الخادم (503)</label><input data-set="fallback" list="ml" value="${esc(S.fallback)}" dir="ltr">
  <p class="mut small">اكتب معرّف النموذج (Model ID) مثل gemini-3.8-flash، وليس اسمه المعروض.</p><button class="alt" data-act="models" style="width:100%">اجلب النماذج المتاحة لمفتاحي</button></div>
  <div class="card"><h2>الإنتاج</h2>
  <label>مستوى الدارجة</label><select data-set="darija">${opt('darija',[['full','دارجة جزائرية كاملة'],['light','قريبة من الفصحى']])}</select>
@@ -239,6 +248,7 @@ document.addEventListener('input',e=>{const k=e.target.dataset.set;if(!k)return;
 document.addEventListener('change',e=>{const n=e.target.dataset.sum;if(n&&P){P.bible.episodes.find(x=>x.n==n).summary=e.target.value;save()}});
 $('impf').onchange=async e=>{try{const d=JSON.parse(await e.target.files[0].text());if(!d.bible?.episodes)throw 0;P=d;P.eps=P.eps||{};P.copied=P.copied||{};save();show('series');say('تم الاستيراد.','ok')}catch{say('ملف غير صالح.','err')}};
 
+$('status').onclick=()=>say('');
 show(P?'series':'home');
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js?v='+APP_VERSION).catch(()=>{});
 </script>
