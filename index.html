@@ -81,13 +81,13 @@ details p,.en{margin:6px 0;line-height:1.7;direction:ltr;text-align:left}
 <div id="status"></div><div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION='1.2.0'; /* غيّره عند كل تحديث */
+const APP_VERSION='1.2.1'; /* غيّره عند كل تحديث */
 const $=id=>document.getElementById(id);
 $('ver').textContent='v'+APP_VERSION;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const store={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
-let S=Object.assign({keys:'',model:'gemini-2.5-flash',darija:'full',dialogue:'clip',refs:'image',scenes:12,secs:10},store.get('settings',{}));
-let P=store.get('project',null),cool=store.get('cool',{}),cur='home',prev='home',curEp=null,busyF=false,rot=0;
+let S=Object.assign({keys:'',model:'gemini-3.8-flash',darija:'full',dialogue:'clip',refs:'image',scenes:12,secs:10},store.get('settings',{}));
+let P=store.get('project',null),cool=store.get('cool2',{}),cur='home',prev='home',curEp=null,busyF=false,rot=0;
 const save=()=>store.set('project',P);
 
 /* ---------- تثبيت التطبيق ---------- */
@@ -110,6 +110,7 @@ $('brand').onclick=()=>show(P?'series':'home');
 $('gear').onclick=()=>{if(cur!=='set')prev=cur;show('set')};
 
 /* ---------- مجمّع المفاتيح ---------- */
+const mdl=()=>S.model.trim().toLowerCase().replace(/^models\//,'').replace(/\s+/g,'-');
 const keyArr=()=>S.keys.split('\n').map(k=>k.trim()).filter(Boolean);
 const mask=k=>k.length>10?k.slice(0,5)+'••••'+k.slice(-4):'••••';
 async function gem(system,user){
@@ -117,18 +118,19 @@ async function gem(system,user){
  if(!ks.length)throw new Error('أضف مفتاح Gemini واحداً على الأقل من الإعدادات ⚙️');
  const now=Date.now(),ready=ks.filter(k=>(cool[k]||0)<=now);
  if(!ready.length)throw new Error('كل المفاتيح في فترة راحة. انتظر دقيقة أو أضف مفتاحاً.');
- const body=JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:'user',parts:[{text:user}]}],generationConfig:{responseMimeType:'application/json',temperature:0.8}});
+ const body=JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:'user',parts:[{text:user}]}],generationConfig:{responseMimeType:'application/json'}});
  let last='';
  for(let i=0;i<ready.length;i++){
   const k=ready[(rot+i)%ready.length];
   say(`جارٍ الاتصال بـ Gemini (مفتاح ${ks.indexOf(k)+1} من ${ks.length})... قد يستغرق دقيقة`,'busy');
   try{
-   const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(S.model)}:generateContent?key=${k}`,{method:'POST',headers:{'Content-Type':'application/json'},body});
+   const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(mdl())}:generateContent?key=${k}`,{method:'POST',headers:{'Content-Type':'application/json'},body});
    if(r.ok){const j=await r.json();const t=(j.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('');rot++;if(t)return t;last='رد فارغ: '+(j.promptFeedback?.blockReason||j.candidates?.[0]?.finishReason||'');continue}
    const e=(await r.text()).slice(0,220);last=`خطأ ${r.status}: ${e}`;
-   if(r.status===404)throw new Error('اسم النموذج غير صحيح. عدّله من الإعدادات. '+e);
-   cool[k]=now+(r.status===429?60000:r.status===503?15000:3600000);store.set('cool',cool);
-  }catch(e){if(e.message.startsWith('اسم'))throw e;last=e.message}
+   if(r.status===429||r.status===503){cool[k]=now+(r.status===429?60000:15000);store.set('cool2',cool)}
+   else if(r.status===403||/API key not valid|API_KEY_INVALID/.test(e)){cool[k]=now+3600000;store.set('cool2',cool)}
+   else{const f=new Error(last+(r.status===404||/model/i.test(e)?'\nتحقق من اسم النموذج في الإعدادات (مثل gemini-3.8-flash).':''));f.fatal=1;throw f}
+  }catch(e){if(e.fatal)throw e;last=e.message}
  }
  throw new Error(last||'فشل الاتصال');
 }
@@ -200,7 +202,8 @@ function renderSet(){
  $('v-set').innerHTML=`<div class="card"><button class="alt" data-act="back2">‹ رجوع</button><h2 style="margin-top:12px">مفاتيح Gemini</h2>
  <label>مفتاح واحد في كل سطر</label><textarea data-set="keys" rows="5" dir="ltr" placeholder="AIza...">${esc(S.keys)}</textarea><ul class="keys" id="kl"></ul>
  <p class="mut small">الأفضل مفاتيح من حسابات أو مشاريع Google مختلفة، فالحد المجاني غالباً يُحسب على المشروع.</p></div>
- <div class="card"><h2>النموذج</h2><input data-set="model" value="${esc(S.model)}" dir="ltr"></div>
+ <div class="card"><h2>النموذج</h2><input data-set="model" list="ml" value="${esc(S.model)}" dir="ltr"><datalist id="ml"><option value="gemini-3.8-flash"><option value="gemini-3.7-flash"></datalist>
+ <p class="mut small">اكتب معرّف النموذج (Model ID) مثل gemini-3.8-flash، وليس اسمه المعروض.</p><button class="alt" data-act="models" style="width:100%">اجلب النماذج المتاحة لمفتاحي</button></div>
  <div class="card"><h2>الإنتاج</h2>
  <label>مستوى الدارجة</label><select data-set="darija">${opt('darija',[['full','دارجة جزائرية كاملة'],['light','قريبة من الفصحى']])}</select>
  <label>الحوار</label><select data-set="dialogue">${opt('dialogue',[['clip','ينطقه نموذج الفيديو داخل المقطع'],['voice','تعليق صوتي يُضاف لاحقاً']])}</select>
@@ -213,6 +216,13 @@ function renderSet(){
 function keyList(){const el=$('kl');if(!el)return;const n=Date.now();el.innerHTML=keyArr().map(k=>{const w=Math.ceil(((cool[k]||0)-n)/1000);return `<li><span>${mask(k)}</span><span class="mut">${w>0?'راحة '+w+'ث':'جاهز'}</span></li>`}).join('')||'<li style="direction:rtl">لا توجد مفاتيح</li>'}
 setInterval(()=>{if(cur==='set')keyList()},1000);
 
+async function listModels(){
+ const ks=keyArr();if(!ks.length)return say('أضف مفتاحاً أولاً.','err');
+ lock(true);say('جارٍ جلب النماذج...','busy');
+ try{const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=100&key='+ks[0]);if(!r.ok)throw new Error('خطأ '+r.status+': '+(await r.text()).slice(0,150));
+  const j=await r.json(),n=(j.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>m.name.replace('models/',''));
+  $('ml').innerHTML=n.map(x=>`<option value="${x}">`).join('');say(`وُجد ${n.length} نموذجاً. امسح خانة النموذج واضغط عليها لاختيار واحد.`,'ok')}
+ catch(e){say(e.message,'err')}lock(false)}
 /* ---------- الأحداث ---------- */
 async function copy(b){const t=b.dataset.text;try{await navigator.clipboard.writeText(t)}catch{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();document.execCommand('copy');a.remove()}
  b.classList.add('done');P.copied[b.dataset.id]=1;save();toast('تم النسخ')}
@@ -221,7 +231,7 @@ document.addEventListener('click',e=>{
  const b=e.target.closest('[data-act]');if(!b||busyF)return;
  const n=+b.dataset.n,A={mk:()=>makeBible(),newb:()=>makeBible(P.form),new:()=>show('home'),
   gen:()=>{if(P.eps[n]){curEp=n;show('ep')}else makeEp(n)},regen:()=>makeEp(n),back:()=>show('series'),back2:()=>show(prev),
-  imp:()=>$('impf').click(),wipe:()=>{if(confirm('حذف المشروع الحالي؟')){P=null;localStorage.removeItem('project');show('home')}},
+  imp:()=>$('impf').click(),models:listModels,wipe:()=>{if(confirm('حذف المشروع الحالي؟')){P=null;localStorage.removeItem('project');show('home')}},
   exp:()=>{if(!P)return say('لا يوجد مشروع.','err');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(P,null,1)],{type:'application/json'}));a.download=(P.bible.title||'project')+'.json';a.click()}};
  A[b.dataset.act]?.();
 });
