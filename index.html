@@ -67,6 +67,9 @@ details p,.en{margin:6px 0;line-height:1.7;direction:ltr;text-align:left}
   <label>الفئة العمرية</label><select id="f_age"><option>3-5 سنوات</option><option selected>6-9 سنوات</option><option>10-14 سنة</option><option>العائلة كلها</option></select>
   <label>النوع</label><select id="f_genre"><option>مغامرة</option><option>كوميديا</option><option>تراث وحكايات شعبية</option><option>تشويق وألغاز</option><option>قيم وأخلاق</option></select>
   <label>البيئة الجزائرية</label><input id="f_place" placeholder="قرية جبلية، صحراء، مدينة قديمة...">
+  <label>أبعاد الفيديو</label><select id="f_ratio"><option value="16:9">16:9 أفقي (يوتيوب)</option><option value="9:16">9:16 عمودي (ريلز وتيك توك)</option><option value="1:1">1:1 مربع</option></select>
+  <label>ستايل الفيديو</label><select id="f_style"><option value="3D animated cartoon, soft cinematic lighting">كرتون ثلاثي الأبعاد</option><option value="2D hand-drawn animation, bold colors">كرتون ثنائي الأبعاد</option><option value="watercolor storybook illustration, soft textures">رسم مائي لكتاب حكايات</option><option value="photorealistic cinematic live-action look">واقعي سينمائي</option><option value="claymation stop-motion look">صلصال (ستوب موشن)</option><option value="anime style, expressive and colorful">أنمي</option><option value="traditional Algerian art style with zellige patterns and warm earthy tones">فن تراثي جزائري بزخارف الزليج</option></select>
+  <input id="f_style2" placeholder="أو اكتب ستايلاً خاصاً (اختياري)" style="margin-top:8px">
   <label>عدد الحلقات</label><input id="f_eps" type="number" min="1" max="20" value="5">
   <label>القيم المراد إيصالها</label><input id="f_values" placeholder="الصدق، التعاون...">
   <label>ملاحظات أو شخصيات تريدها</label><textarea id="f_notes" rows="2"></textarea>
@@ -81,14 +84,31 @@ details p,.en{margin:6px 0;line-height:1.7;direction:ltr;text-align:left}
 <div id="status"></div><div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION='1.2.2'; /* غيّره عند كل تحديث */
+const APP_VERSION='1.3.0'; /* غيّره عند كل تحديث */
 const $=id=>document.getElementById(id);
 $('ver').textContent='v'+APP_VERSION;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const store={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
-let S=Object.assign({keys:'',model:'gemini-3.8-flash',fallback:'gemini-3.7-flash',darija:'full',dialogue:'clip',refs:'image',scenes:12,secs:10},store.get('settings',{}));
+let S=Object.assign({keys:'',model:'gemini-3.8-flash',modelCustom:'',fallback:'gemini-3.5-flash-lite',fbCustom:'',think:'low',darija:'full',dialogue:'clip',refs:'image',scenes:12,secs:10},store.get('settings',{}));
 let P=store.get('project',null),cool=store.get('cool2',{}),cur='home',prev='home',curEp=null,busyF=false,rot=0;
 const save=()=>store.set('project',P);
+const norm=m=>(m||'').trim().toLowerCase().replace(/^models\//,'').replace(/\s+/g,'-');
+const MODELS=[
+ {id:'gemini-3.8-flash',sp:1,free:1,note:'الأذكى بين نماذج Flash، وهو الافتراضي المقترح'},
+ {id:'gemini-3.5-flash-lite',sp:2,free:1,note:'الأسرع، وقد تكون الدارجة أضعف قليلاً'},
+ {id:'gemini-3.1-flash-lite',sp:1,free:1,note:'سريع واقتصادي'},
+ {id:'gemini-3.1-pro-preview',sp:0,free:1,note:'أقوى وأبطأ، للجودة القصوى'},
+ {id:'gemini-3.6-flash',sp:1,free:0,note:'الجيل السابق من Flash'},
+ {id:'gemini-3-flash-preview',sp:1,free:0,note:'قديم'},
+ {id:'gemini-4-argon',sp:0,free:0,note:'للمسائل المعقدة، بطيء'},
+ {id:'gemini-4-carbon',sp:0,free:0,note:'الأحدث والأقوى، وهو الأبطأ'}];
+for(const [k,c] of [['model','modelCustom'],['fallback','fbCustom']]){S[k]=norm(S[k]);if(S[k]==='gemini-3.7-flash')S[k]='gemini-3.5-flash-lite';if(S[k]!=='__custom'&&!MODELS.some(m=>m.id===S[k])){S[c]=S[k];S[k]='__custom'}}
+const pick=(k,c)=>S[k]==='__custom'?norm(S[c]):S[k];
+const mlabel=m=>`${m.id} · ${m.sp===2?'⚡⚡ الأسرع':m.sp===1?'⚡ سريع':'🐢 بطيء'} · ${m.free?'🆓 مجاني':'💳 مدفوع'}`;
+const modelOpts=k=>MODELS.map(m=>`<option value="${m.id}"${S[k]===m.id?' selected':''}>${mlabel(m)}</option>`).join('')+`<option value="__custom"${S[k]==='__custom'?' selected':''}>آخر (أكتبه)</option>`;
+const mnote=k=>{const m=MODELS.find(x=>x.id===S[k]);return m?m.note+(m.free?'':' ⚠️ يحتاج حساباً مدفوعاً'):'اكتب معرّف النموذج مثل gemini-3.8-flash'};
+const pre=()=>{const r=P?.form?.ratio,g=P?.bible?.style_guide;return(r?`${r} ${r==='9:16'?'vertical':r==='1:1'?'square':'horizontal'} frame. `:'')+(g?g+'. ':'')};
+const heroPrompt=b=>b.heroes_group_prompt||("Group reference image of the story's main characters standing together side by side, full body, front view, plain neutral background, consistent designs. "+(b.main||[]).map((c,i)=>`Character ${i+1}: ${c.desc}`).join(' '));
 
 /* ---------- تثبيت التطبيق ---------- */
 const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
@@ -113,32 +133,36 @@ $('gear').onclick=()=>{if(cur!=='set')prev=cur;show('set')};
 const mdl=()=>S.model.trim().toLowerCase().replace(/^models\//,'').replace(/\s+/g,'-');
 const keyArr=()=>S.keys.split('\n').map(k=>k.trim()).filter(Boolean);
 const mask=k=>k.length>10?k.slice(0,5)+'••••'+k.slice(-4):'••••';
-const norm=m=>(m||'').trim().toLowerCase().replace(/^models\//,'').replace(/\s+/g,'-');
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function gem(system,user){
  const ks=keyArr();
  if(!ks.length)throw new Error('أضف مفتاح Gemini واحداً على الأقل من الإعدادات ⚙️');
- const body=JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:'user',parts:[{text:user}]}],generationConfig:{responseMimeType:'application/json'}});
- let last='';
+ let think=S.think!=='default',last='';
+ const mk=()=>JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:[{role:'user',parts:[{text:user}]}],generationConfig:Object.assign({responseMimeType:'application/json'},think?{thinkingConfig:{thinkingLevel:'low'}}:{})});
  for(let round=0;round<4;round++){
   const now=Date.now(),ready=ks.filter(k=>(cool[k]||0)<=now);
   if(!ready.length)throw new Error(last||'كل المفاتيح في فترة راحة. انتظر دقيقة أو أضف مفتاحاً.');
-  const fb=round>=2&&norm(S.fallback)&&norm(S.fallback)!==norm(S.model),model=fb?norm(S.fallback):norm(S.model);
+  const main=pick('model','modelCustom'),alt=pick('fallback','fbCustom'),fb=round>=2&&alt&&alt!==main,model=fb?alt:main;
   let over=false;
   for(let i=0;i<ready.length;i++){
-   const k=ready[(rot+i)%ready.length];
-   say(`جارٍ الاتصال بـ ${model} (مفتاح ${ks.indexOf(k)+1} من ${ks.length}) ... قد يستغرق دقيقة`,'busy');
+   const k=ready[(rot+i)%ready.length],base=`${model} · مفتاح ${ks.indexOf(k)+1} من ${ks.length}`,t0=Date.now();
+   const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),75000);
+   const iv=setInterval(()=>say(`جارٍ الكتابة بـ ${base} — ${Math.round((Date.now()-t0)/1000)} ث`,'busy'),1000);
+   say(`جارٍ الاتصال بـ ${base}`,'busy');
    try{
-    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${k}`,{method:'POST',headers:{'Content-Type':'application/json'},body});
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${k}`,{method:'POST',headers:{'Content-Type':'application/json'},body:mk(),signal:ac.signal});
     if(r.ok){const j=await r.json();const t=(j.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('');rot++;if(t)return t;last='رد فارغ: '+(j.promptFeedback?.blockReason||j.candidates?.[0]?.finishReason||'');continue}
     const e=(await r.text()).slice(0,220);last=`خطأ ${r.status}: ${e}`;
+    if(think&&r.status===400&&/think/i.test(e)){think=false;i--;continue}
     if(r.status===503){over=true;continue}
+    if(r.status===404&&fb)continue;
     if(r.status===429){cool[k]=Date.now()+60000;store.set('cool2',cool);continue}
     if(r.status===403||/API key not valid|API_KEY_INVALID/.test(e)){cool[k]=Date.now()+3600000;store.set('cool2',cool);continue}
-    const f=new Error(last+(r.status===404||/model/i.test(e)?'\nتحقق من اسم النموذج في الإعدادات (مثل gemini-3.8-flash).':''));f.fatal=1;throw f;
-   }catch(e){if(e.fatal)throw e;last=e.message;over=true}
+    const f=new Error(last+(r.status===404||/model/i.test(e)?'\nتحقق من اسم النموذج في الإعدادات.':''));f.fatal=1;throw f;
+   }catch(e){if(e.fatal)throw e;last=e.name==='AbortError'?'انتهت مهلة الطلب (75 ثانية).':e.message;over=true}
+   finally{clearTimeout(tm);clearInterval(iv)}
   }
-  if(round<3&&over){const w=8*(round+1);for(let t=w;t>0;t--){say(`الخادم مشغول. إعادة المحاولة بعد ${t} ثانية (${round+2} من 4)${round>=1&&norm(S.fallback)?' بالنموذج الاحتياطي':''}`,'busy');await sleep(1000)}}
+  if(round<3&&over){const w=8*(round+1);for(let t=w;t>0;t--){say(`الخادم مشغول. إعادة المحاولة بعد ${t} ثانية (${round+2} من 4)${round>=1&&alt&&alt!==main?' بالنموذج الاحتياطي':''}`,'busy');await sleep(1000)}}
  }
  throw new Error(last+'\nالخادم مشغول، جرّب بعد قليل أو غيّر النموذج من الإعدادات.');
 }
@@ -148,21 +172,23 @@ function parse(t){t=t.replace(/```json|```/g,'');const a=t.indexOf('{'),b=t.last
 const bibleSys=f=>`أنت كاتب ومخرج لمسلسلات جزائرية قصيرة تُنتج كفيديوهات. من المعلومات العامة التي يقدمها المستخدم ابتكر مسلسلاً أصلياً (لا تقتبس عملاً موجوداً) فيه تراث جزائري حقيقي، ومحتواه آمن ومناسب للفئة العمرية. أخرج JSON فقط بلا شرح ولا Markdown.
 - main: 2-4 شخصيات رئيسية، لكل منها name بالعربية وdesc بالإنجليزية وصف بصري ثابت (العمر، الملامح، الشعر، اللباس بألوان محددة).
 - secondary: 4-8 شخصيات وأماكن ثانوية متكررة، لكل منها code حرفي (A,B,C...) وtype (character|place|object) وname عربي وprompt إنجليزي لصورة مرجعية.
-- style_guide: جملة إنجليزية واحدة للأسلوب البصري الموحد، ولا نصوص مكتوبة داخل الصور.
+- style_guide: جملة إنجليزية واحدة للأسلوب البصري الموحد، مبنية على الستايل المطلوب (${f.style}) ومناسبة لكادر ${f.ratio}، ولا نصوص مكتوبة داخل الصور.
+- heroes_group_prompt: برومبت إنجليزي واحد لصورة مرجعية تجمع كل الشخصيات الرئيسية معاً (وقوف متجاور، كامل الجسم، خلفية محايدة، ملامح وألوان مطابقة تماماً لـ desc).
 - episodes: بالضبط ${f.eps} حلقة، لكل منها n وtitle وvalue (القيمة التربوية) وsummary عربي من 3-4 جمل. تتصاعد الأحداث وتنتهي بخاتمة مرضية.
-{"title":"","logline":"","style_guide":"","main":[{"name":"","desc":""}],"secondary":[{"code":"A","type":"","name":"","prompt":""}],"episodes":[{"n":1,"title":"","value":"","summary":""}]}`;
+{"title":"","logline":"","style_guide":"","heroes_group_prompt":"","main":[{"name":"","desc":""}],"secondary":[{"code":"A","type":"","name":"","prompt":""}],"episodes":[{"n":1,"title":"","value":"","summary":""}]}`;
 
 const epSys=()=>`أنت مخرج فيديو. حوّل ملخص الحلقة إلى ${S.scenes} مشهداً بالضبط، مدة كل مشهد ${S.secs} ثوانٍ، وحافظ على اتساق القصة مع الحلقات السابقة. أخرج JSON فقط بلا شرح.
 - الحوار بالدارجة الجزائرية ${S.darija==='full'?'الكاملة':'القريبة من الفصحى'}، مكتوباً بالحروف العربية.
 - first_frame_prompt: إنجليزي سينمائي للصورة الأولى (الكادر، الإضاءة، الحالة). انسخ الوصف الثابت للشخصيات الرئيسية الظاهرة حرفياً من الدليل. لا نصوص داخل الصورة.
 - motion_prompt: إنجليزي، حركة الكاميرا والشخصيات خلال ${S.secs} ثوانٍ. ${S.dialogue==='clip'?'ضمّن حواراً منطوقاً قصيراً بين علامتي تنصيص مع اسم المتكلم يناسب المدة.':'لا تضمّن حواراً منطوقاً، واكتب تعليقاً صوتياً قصيراً في الحقل voice.'}
 - ${S.refs==='image'?'للعناصر الثانوية اكتب في البرومبت (refer to image X) بدل إعادة وصفها.':'كرر وصف العناصر الثانوية كاملاً داخل البرومبت ولا تستخدم الرموز في النص.'}
+- التكوين مناسب لكادر ${P?.form?.ratio||'16:9'}.
 - refs: رموز الثانويات الظاهرة. أول مشهد يجذب الانتباه، وآخره يمهد للحلقة التالية (أو يختم المسلسل إن كانت الأخيرة).
 {"title":"","scenes":[{"n":1,"summary":"سطر عربي","first_frame_prompt":"","motion_prompt":"","voice":"","refs":["A"]}]}`;
 
 /* ---------- إنشاء الدليل والحلقات ---------- */
 async function makeBible(f){
- if(!f){f={name:$('f_name').value,idea:$('f_idea').value,age:$('f_age').value,genre:$('f_genre').value,place:$('f_place').value,eps:Math.min(20,Math.max(1,+$('f_eps').value||5)),values:$('f_values').value,notes:$('f_notes').value};
+ if(!f){f={name:$('f_name').value,idea:$('f_idea').value,age:$('f_age').value,genre:$('f_genre').value,place:$('f_place').value,eps:Math.min(20,Math.max(1,+$('f_eps').value||5)),ratio:$('f_ratio').value,style:$('f_style2').value.trim()||$('f_style').value,values:$('f_values').value,notes:$('f_notes').value};
   if(!f.idea.trim()&&!f.name.trim())return say('اكتب فكرة عامة أو اسماً على الأقل.','err')}
  if(P&&!confirm('سيُستبدل المشروع الحالي. متابعة؟'))return;
  lock(true);
@@ -190,14 +216,14 @@ async function makeEp(n){
 /* ---------- العرض ---------- */
 const cp=id=>P.copied[id]?' done':'';
 function renderSeries(){
- const b=P.bible,sg=b.style_guide?b.style_guide+'. ':'';
- $('v-series').innerHTML=`<div class="card"><h2>${esc(b.title)}</h2><p class="mut">${esc(b.logline)}</p><div class="row"><button class="alt" data-act="newb">أعد توليد الدليل</button><button class="alt" data-act="new">مشروع جديد</button></div></div>
- <div class="card"><h2>الشخصيات الرئيسية</h2>${(b.main||[]).map(c=>`<details style="display:block"><summary>${esc(c.name)}</summary><p>${esc(c.desc)}</p></details>`).join('')}</div>
+ const b=P.bible,sg=pre();
+ $('v-series').innerHTML=`<div class="card"><h2>${esc(b.title)}</h2><p class="mut">${esc(b.logline)}</p><p class="mut small">الأبعاد ${esc(P.form?.ratio||'—')} · الستايل: ${esc(P.form?.style||'—')}</p><div class="row"><button class="alt" data-act="newb">أعد توليد الدليل</button><button class="alt" data-act="new">مشروع جديد</button></div></div>
+ <div class="card"><h2>الشخصيات الرئيسية</h2><button class="${cp('hero')}" data-id="hero" data-text="${esc(sg+heroPrompt(b))}" style="width:100%;margin-bottom:8px">انسخ برومبت صورة الأبطال معاً (المرجع الرئيسي)</button>${(b.main||[]).map(c=>`<details style="display:block"><summary>${esc(c.name)}</summary><p>${esc(c.desc)}</p></details>`).join('')}</div>
  <div class="card"><h2>الثانوية: انسخ برومبت الصورة المرجعية</h2><div class="chars">${(b.secondary||[]).map(c=>`<button class="${cp('s:'+c.code)}" data-id="s:${esc(c.code)}" data-text="${esc(sg+c.prompt)}"><b>${esc(c.code)}</b>${esc(c.name)}<small class="mut">${esc(c.type)}</small></button>`).join('')}</div></div>
  <div class="card"><h2>الحلقات</h2>${b.episodes.map(e=>`<div class="ep"><b>${e.n}. ${esc(e.title)}</b> <span class="mut small">${esc(e.value||'')}</span><textarea data-sum="${e.n}" rows="3">${esc(e.summary)}</textarea><div class="row"><button data-act="gen" data-n="${e.n}">${P.eps[e.n]?'افتح الحلقة':'ولّد الحلقة'}</button>${P.eps[e.n]?`<button class="alt" data-act="regen" data-n="${e.n}">أعد التوليد</button>`:''}</div></div>`).join('')}</div>`;
 }
 function renderEp(){
- const ep=P.eps[curEp],sg=P.bible.style_guide?P.bible.style_guide+'. ':'';
+ const ep=P.eps[curEp],sg=pre();
  $('v-ep').innerHTML=`<div class="card"><button class="alt" data-act="back">‹ الحلقات</button><h2 style="margin-top:12px">الحلقة ${curEp}: ${esc(ep.title)}</h2>${ep.scenes.map(s=>`<div class="scene"><div class="num">${s.n}</div>
  <button class="${cp(curEp+':f'+s.n)}" data-id="${curEp}:f${s.n}" data-text="${esc(sg+s.first_frame_prompt)}">صورة أولى</button>
  <button class="${cp(curEp+':m'+s.n)}" data-id="${curEp}:m${s.n}" data-text="${esc(s.motion_prompt)}">تحريك M${s.n}</button>
@@ -210,9 +236,12 @@ function renderSet(){
  $('v-set').innerHTML=`<div class="card"><button class="alt" data-act="back2">‹ رجوع</button><h2 style="margin-top:12px">مفاتيح Gemini</h2>
  <label>مفتاح واحد في كل سطر</label><textarea data-set="keys" rows="5" dir="ltr" placeholder="AIza...">${esc(S.keys)}</textarea><ul class="keys" id="kl"></ul>
  <p class="mut small">الأفضل مفاتيح من حسابات أو مشاريع Google مختلفة، فالحد المجاني غالباً يُحسب على المشروع.</p></div>
- <div class="card"><h2>النموذج</h2><input data-set="model" list="ml" value="${esc(S.model)}" dir="ltr"><datalist id="ml"><option value="gemini-3.8-flash"><option value="gemini-3.7-flash"></datalist>
- <label>نموذج احتياطي عند ازدحام الخادم (503)</label><input data-set="fallback" list="ml" value="${esc(S.fallback)}" dir="ltr">
- <p class="mut small">اكتب معرّف النموذج (Model ID) مثل gemini-3.8-flash، وليس اسمه المعروض.</p><button class="alt" data-act="models" style="width:100%">اجلب النماذج المتاحة لمفتاحي</button></div>
+ <div class="card"><h2>النموذج</h2>
+ <select data-set="model">${modelOpts('model')}</select>${S.model==='__custom'?`<input data-set="modelCustom" list="ml" value="${esc(S.modelCustom)}" dir="ltr" style="margin-top:8px">`:''}<p class="mut small">${mnote('model')}</p>
+ <label>نموذج احتياطي عند ازدحام الخادم (503)</label><select data-set="fallback">${modelOpts('fallback')}</select>${S.fallback==='__custom'?`<input data-set="fbCustom" list="ml" value="${esc(S.fbCustom)}" dir="ltr" style="margin-top:8px">`:''}
+ <label>التفكير</label><select data-set="think">${opt('think',[['low','سريع (low) — موصى به'],['default','افتراضي (أبطأ وأعمق)']])}</select>
+ <p class="mut small">⚡ سريع · 🐢 بطيء · 🆓 بلا شارة Paid في AI Studio (وحدوده المجانية قد تكون ضيقة) · 💳 مدفوع.</p>
+ <datalist id="ml"></datalist><button class="alt" data-act="models" style="width:100%">اجلب النماذج المتاحة لمفتاحي</button></div>
  <div class="card"><h2>الإنتاج</h2>
  <label>مستوى الدارجة</label><select data-set="darija">${opt('darija',[['full','دارجة جزائرية كاملة'],['light','قريبة من الفصحى']])}</select>
  <label>الحوار</label><select data-set="dialogue">${opt('dialogue',[['clip','ينطقه نموذج الفيديو داخل المقطع'],['voice','تعليق صوتي يُضاف لاحقاً']])}</select>
@@ -244,7 +273,7 @@ document.addEventListener('click',e=>{
   exp:()=>{if(!P)return say('لا يوجد مشروع.','err');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(P,null,1)],{type:'application/json'}));a.download=(P.bible.title||'project')+'.json';a.click()}};
  A[b.dataset.act]?.();
 });
-document.addEventListener('input',e=>{const k=e.target.dataset.set;if(!k)return;S[k]=e.target.type==='number'?+e.target.value:e.target.value;store.set('settings',S);if(k==='keys')keyList()});
+document.addEventListener('input',e=>{const k=e.target.dataset.set;if(!k)return;S[k]=e.target.type==='number'?+e.target.value:e.target.value;store.set('settings',S);if(k==='keys')keyList();if(['model','fallback','think'].includes(k))renderSet()});
 document.addEventListener('change',e=>{const n=e.target.dataset.sum;if(n&&P){P.bible.episodes.find(x=>x.n==n).summary=e.target.value;save()}});
 $('impf').onchange=async e=>{try{const d=JSON.parse(await e.target.files[0].text());if(!d.bible?.episodes)throw 0;P=d;P.eps=P.eps||{};P.copied=P.copied||{};save();show('series');say('تم الاستيراد.','ok')}catch{say('ملف غير صالح.','err')}};
 
