@@ -84,7 +84,7 @@ details p,.en{margin:6px 0;line-height:1.7;direction:ltr;text-align:left}
 <div id="status"></div><div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION='1.3.0'; /* غيّره عند كل تحديث */
+const APP_VERSION='1.3.1'; /* غيّره عند كل تحديث */
 const $=id=>document.getElementById(id);
 $('ver').textContent='v'+APP_VERSION;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -108,7 +108,8 @@ const mlabel=m=>`${m.id} · ${m.sp===2?'⚡⚡ الأسرع':m.sp===1?'⚡ سر�
 const modelOpts=k=>MODELS.map(m=>`<option value="${m.id}"${S[k]===m.id?' selected':''}>${mlabel(m)}</option>`).join('')+`<option value="__custom"${S[k]==='__custom'?' selected':''}>آخر (أكتبه)</option>`;
 const mnote=k=>{const m=MODELS.find(x=>x.id===S[k]);return m?m.note+(m.free?'':' ⚠️ يحتاج حساباً مدفوعاً'):'اكتب معرّف النموذج مثل gemini-3.8-flash'};
 const pre=()=>{const r=P?.form?.ratio,g=P?.bible?.style_guide;return(r?`${r} ${r==='9:16'?'vertical':r==='1:1'?'square':'horizontal'} frame. `:'')+(g?g+'. ':'')};
-const heroPrompt=b=>b.heroes_group_prompt||("Group reference image of the story's main characters standing together side by side, full body, front view, plain neutral background, consistent designs. "+(b.main||[]).map((c,i)=>`Character ${i+1}: ${c.desc}`).join(' '));
+const heroPrompt=b=>{const m=b.main||[],n=m.length;
+ return `Character reference sheet on a pure white background, horizontal layout. ${n} character${n>1?'s':''} in a single row, each shown full body from head to toe, front view, neutral standing pose, drawn in the same art style (${b.style_guide||'consistent style'}). Thin vertical divider lines separate each character from the next. Below each character, a caption with the character's name in clean readable Arabic text: ${m.map((c,i)=>`${i+1}) "${c.name}"`).join(', ')}. `+m.map((c,i)=>`Character ${i+1} (${c.name}): ${c.desc}.`).join(' ')};
 
 /* ---------- تثبيت التطبيق ---------- */
 const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone;
@@ -173,9 +174,8 @@ const bibleSys=f=>`أنت كاتب ومخرج لمسلسلات جزائرية ق
 - main: 2-4 شخصيات رئيسية، لكل منها name بالعربية وdesc بالإنجليزية وصف بصري ثابت (العمر، الملامح، الشعر، اللباس بألوان محددة).
 - secondary: 4-8 شخصيات وأماكن ثانوية متكررة، لكل منها code حرفي (A,B,C...) وtype (character|place|object) وname عربي وprompt إنجليزي لصورة مرجعية.
 - style_guide: جملة إنجليزية واحدة للأسلوب البصري الموحد، مبنية على الستايل المطلوب (${f.style}) ومناسبة لكادر ${f.ratio}، ولا نصوص مكتوبة داخل الصور.
-- heroes_group_prompt: برومبت إنجليزي واحد لصورة مرجعية تجمع كل الشخصيات الرئيسية معاً (وقوف متجاور، كامل الجسم، خلفية محايدة، ملامح وألوان مطابقة تماماً لـ desc).
 - episodes: بالضبط ${f.eps} حلقة، لكل منها n وtitle وvalue (القيمة التربوية) وsummary عربي من 3-4 جمل. تتصاعد الأحداث وتنتهي بخاتمة مرضية.
-{"title":"","logline":"","style_guide":"","heroes_group_prompt":"","main":[{"name":"","desc":""}],"secondary":[{"code":"A","type":"","name":"","prompt":""}],"episodes":[{"n":1,"title":"","value":"","summary":""}]}`;
+{"title":"","logline":"","style_guide":"","main":[{"name":"","desc":""}],"secondary":[{"code":"A","type":"","name":"","prompt":""}],"episodes":[{"n":1,"title":"","value":"","summary":""}]}`;
 
 const epSys=()=>`أنت مخرج فيديو. حوّل ملخص الحلقة إلى ${S.scenes} مشهداً بالضبط، مدة كل مشهد ${S.secs} ثوانٍ، وحافظ على اتساق القصة مع الحلقات السابقة. أخرج JSON فقط بلا شرح.
 - الحوار بالدارجة الجزائرية ${S.darija==='full'?'الكاملة':'القريبة من الفصحى'}، مكتوباً بالحروف العربية.
@@ -218,7 +218,7 @@ const cp=id=>P.copied[id]?' done':'';
 function renderSeries(){
  const b=P.bible,sg=pre();
  $('v-series').innerHTML=`<div class="card"><h2>${esc(b.title)}</h2><p class="mut">${esc(b.logline)}</p><p class="mut small">الأبعاد ${esc(P.form?.ratio||'—')} · الستايل: ${esc(P.form?.style||'—')}</p><div class="row"><button class="alt" data-act="newb">أعد توليد الدليل</button><button class="alt" data-act="new">مشروع جديد</button></div></div>
- <div class="card"><h2>الشخصيات الرئيسية</h2><button class="${cp('hero')}" data-id="hero" data-text="${esc(sg+heroPrompt(b))}" style="width:100%;margin-bottom:8px">انسخ برومبت صورة الأبطال معاً (المرجع الرئيسي)</button>${(b.main||[]).map(c=>`<details style="display:block"><summary>${esc(c.name)}</summary><p>${esc(c.desc)}</p></details>`).join('')}</div>
+ <div class="card"><h2>الشخصيات الرئيسية</h2><button class="${cp('hero')}" data-id="hero" data-text="${esc(heroPrompt(b))}" style="width:100%;margin-bottom:8px">انسخ برومبت صورة الأبطال معاً (المرجع الرئيسي)</button>${(b.main||[]).map(c=>`<details style="display:block"><summary>${esc(c.name)}</summary><p>${esc(c.desc)}</p></details>`).join('')}</div>
  <div class="card"><h2>الثانوية: انسخ برومبت الصورة المرجعية</h2><div class="chars">${(b.secondary||[]).map(c=>`<button class="${cp('s:'+c.code)}" data-id="s:${esc(c.code)}" data-text="${esc(sg+c.prompt)}"><b>${esc(c.code)}</b>${esc(c.name)}<small class="mut">${esc(c.type)}</small></button>`).join('')}</div></div>
  <div class="card"><h2>الحلقات</h2>${b.episodes.map(e=>`<div class="ep"><b>${e.n}. ${esc(e.title)}</b> <span class="mut small">${esc(e.value||'')}</span><textarea data-sum="${e.n}" rows="3">${esc(e.summary)}</textarea><div class="row"><button data-act="gen" data-n="${e.n}">${P.eps[e.n]?'افتح الحلقة':'ولّد الحلقة'}</button>${P.eps[e.n]?`<button class="alt" data-act="regen" data-n="${e.n}">أعد التوليد</button>`:''}</div></div>`).join('')}</div>`;
 }
