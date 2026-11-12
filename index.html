@@ -32,13 +32,15 @@ input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);borde
 .mut{color:var(--mut)}.small{font-size:12px}
 .keys{list-style:none;padding:0;margin:8px 0;font-size:13px}
 .keys li{display:flex;justify-content:space-between;padding:5px 0;border-top:1px solid var(--line);direction:ltr}
-.chars{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.chars{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
 .chars button{text-align:right;display:flex;flex-direction:column;gap:2px;background:var(--bg);color:var(--ink);border:1px solid var(--line)}
 .chars b{color:var(--g2)}
 .chars button.done{background:var(--ok);color:#fff}
 .ep{border-top:1px solid var(--line);padding:12px 0}
 .ep textarea{margin:6px 0}
 .scene{display:grid;grid-template-columns:44px 1fr 1fr;gap:8px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.pb{display:flex;gap:6px;min-width:0}.pb>button:first-child{flex:1;min-width:0}
+.sq,.chars .sq{flex:0 0 44px;width:44px;padding:0;flex-direction:row;align-items:center;justify-content:center;background:transparent;color:var(--g2);border:1px solid var(--g2);font-size:20px}
 .num{font-weight:800;font-size:20px;color:var(--r);text-align:center}
 .ref{grid-column:2/4;font-size:12px;color:var(--mut)}
 details{grid-column:1/4;font-size:13px;color:var(--mut)}
@@ -84,7 +86,7 @@ details p,.en{margin:6px 0;line-height:1.7;direction:ltr;text-align:left}
 <div id="status"></div><div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION='1.3.1'; /* غيّره عند كل تحديث */
+const APP_VERSION='1.4.0'; /* غيّره عند كل تحديث */
 const $=id=>document.getElementById(id);
 $('ver').textContent='v'+APP_VERSION;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -103,6 +105,17 @@ const MODELS=[
  {id:'gemini-4-argon',sp:0,free:0,note:'للمسائل المعقدة، بطيء'},
  {id:'gemini-4-carbon',sp:0,free:0,note:'الأحدث والأقوى، وهو الأبطأ'}];
 for(const [k,c] of [['model','modelCustom'],['fallback','fbCustom']]){S[k]=norm(S[k]);if(S[k]==='gemini-3.7-flash')S[k]='gemini-3.5-flash-lite';if(S[k]!=='__custom'&&!MODELS.some(m=>m.id===S[k])){S[c]=S[k];S[k]='__custom'}}
+const SAFE=`قواعد السلامة (الصور تُولَّد بنموذج Nano Banana والفيديو بنموذج Gemini Omni، وكلاهما يخضع لسياسة Google للاستخدام المحظور ويرفض بسهولة، فالتزم بها في كل برومبت):
+- لا عنف ولا دماء ولا إصابات ولا جثث ولا تعذيب ولا معارك. تُروى الأحداث الصعبة بالتلميح: ظلال، مسافة بعيدة، أصوات خارج الكادر، فانوس، رسالة، خريطة، علم، تعابير وجوه هادئة.
+- لا أسلحة بأي شكل ولا متفجرات. تجنّب هذه الألفاظ في البرومبتات: gun, rifle, weapon, bomb, explosion, shoot, kill, blood, dead, fight, attack, torture, prison, massacre, war, soldier.
+- الأطفال دائماً بأمان ومحتشمون ومع بالغين موثوقين، بلا خطر عليهم، وبلا لقطات مقرّبة لأجسادهم، وبعيداً عن أي سلاح أو عنف.
+- لا أشخاص حقيقيين ولا شخصيات تاريخية أو سياسية أو مشاهير بالاسم أو بالشبه، ولا علامات تجارية ولا شعارات ولا شخصيات محمية بحقوق، ولا أسماء فنانين أو استوديوهات. الشخصية التاريخية تُصوَّر بشخصية خيالية عامة.
+- لا ألفاظ نابية أو شتائم أو إساءة لدين أو عرق أو بلد في الحوار، لا بالدارجة ولا بغيرها.
+- لا نصوص مكتوبة داخل الصور.
+- الأحداث التاريخية الحساسة تُعرض بوقار: تُعرف الفترة بالأزياء والعمارة والإضاءة والأدوات اليومية، ويُعبَّر عن التضحية بالقيم والمشاعر لا بالمشاهد القاسية. الخصوم يظهرون ظلالاً من بعيد أو خارج الكادر.`;
+const RISK=/\b(gun|rifle|weapon\w*|bomb\w*|explo\w*|blood\w*|kill\w*|shoot\w*|corpse|dead|torture|massacre|violen\w*|attack\w*|fight\w*|battle|war|soldier\w*|prison\w*|execut\w*|terror\w*|wound\w*)\b/i;
+const last=a=>a[a.length-1];
+const vers=(s,k)=>s[k]||(s[k]=[k==='ff'?s.first_frame_prompt:s.motion_prompt]);
 const pick=(k,c)=>S[k]==='__custom'?norm(S[c]):S[k];
 const mlabel=m=>`${m.id} · ${m.sp===2?'⚡⚡ الأسرع':m.sp===1?'⚡ سريع':'🐢 بطيء'} · ${m.free?'🆓 مجاني':'💳 مدفوع'}`;
 const modelOpts=k=>MODELS.map(m=>`<option value="${m.id}"${S[k]===m.id?' selected':''}>${mlabel(m)}</option>`).join('')+`<option value="__custom"${S[k]==='__custom'?' selected':''}>آخر (أكتبه)</option>`;
@@ -175,6 +188,7 @@ const bibleSys=f=>`أنت كاتب ومخرج لمسلسلات جزائرية ق
 - secondary: 4-8 شخصيات وأماكن ثانوية متكررة، لكل منها code حرفي (A,B,C...) وtype (character|place|object) وname عربي وprompt إنجليزي لصورة مرجعية.
 - style_guide: جملة إنجليزية واحدة للأسلوب البصري الموحد، مبنية على الستايل المطلوب (${f.style}) ومناسبة لكادر ${f.ratio}، ولا نصوص مكتوبة داخل الصور.
 - episodes: بالضبط ${f.eps} حلقة، لكل منها n وtitle وvalue (القيمة التربوية) وsummary عربي من 3-4 جمل. تتصاعد الأحداث وتنتهي بخاتمة مرضية.
+${SAFE}
 {"title":"","logline":"","style_guide":"","main":[{"name":"","desc":""}],"secondary":[{"code":"A","type":"","name":"","prompt":""}],"episodes":[{"n":1,"title":"","value":"","summary":""}]}`;
 
 const epSys=()=>`أنت مخرج فيديو. حوّل ملخص الحلقة إلى ${S.scenes} مشهداً بالضبط، مدة كل مشهد ${S.secs} ثوانٍ، وحافظ على اتساق القصة مع الحلقات السابقة. أخرج JSON فقط بلا شرح.
@@ -184,6 +198,7 @@ const epSys=()=>`أنت مخرج فيديو. حوّل ملخص الحلقة إل
 - ${S.refs==='image'?'للعناصر الثانوية اكتب في البرومبت (refer to image X) بدل إعادة وصفها.':'كرر وصف العناصر الثانوية كاملاً داخل البرومبت ولا تستخدم الرموز في النص.'}
 - التكوين مناسب لكادر ${P?.form?.ratio||'16:9'}.
 - refs: رموز الثانويات الظاهرة. أول مشهد يجذب الانتباه، وآخره يمهد للحلقة التالية (أو يختم المسلسل إن كانت الأخيرة).
+${SAFE}
 {"title":"","scenes":[{"n":1,"summary":"سطر عربي","first_frame_prompt":"","motion_prompt":"","voice":"","refs":["A"]}]}`;
 
 /* ---------- إنشاء الدليل والحلقات ---------- */
@@ -213,23 +228,43 @@ async function makeEp(n){
  lock(false);
 }
 
+const regenSys=()=>`أعد كتابة برومبت رُفض من نموذج توليد (غالباً بسبب سياسة المحتوى أو قيود صارمة). أخرج JSON فقط: {"prompt":"..."}
+- حافظ على نفس المعنى والحدث، لكن بصياغة أكثر تحفظاً: حوّل أي إشارة لعنف أو سلاح أو خطر أو حساسية إلى وصف بصري محايد (لقطة بعيدة، ظلال، إضاءة، تعابير هادئة).
+- كل محاولة أكثر تحفظاً من السابقة وبزاوية أو تكوين مختلف، ولا تكرر أي محاولة سابقة.
+- للصور: إنجليزي، وانسخ الوصف الثابت للشخصيات الرئيسية الظاهرة حرفياً. للتحريك: إنجليزي مع الحوار بالدارجة الجزائرية بين علامتي تنصيص إن وُجد، ومدته ${S.secs} ثوانٍ.
+- أبقِ رموز المراجع مثل (refer to image A) كما هي.
+${SAFE}`;
+async function regen(b){
+ const k=b.dataset.k,sc=k==='sc',it=sc?P.bible.secondary.find(x=>x.code===b.dataset.code):P.eps[curEp].scenes.find(x=>x.n==b.dataset.n);
+ const list=sc?(it.pv||(it.pv=[it.prompt])):vers(it,k);
+ const kind=sc?'صورة مرجعية لشخصية أو مكان (Nano Banana)':k==='ff'?'الصورة الأولى للمشهد (Nano Banana)':'تحريك المشهد (Gemini Omni)';
+ lock(true);
+ try{
+  const r=parse(await gem(regenSys(),`النوع: ${kind}\nرقم المحاولة: ${list.length}\n${sc?'الاسم: '+it.name:'ملخص المشهد: '+it.summary}\nالستايل: ${P.bible.style_guide||''}\nالشخصيات الرئيسية: ${JSON.stringify(P.bible.main)}\nالمحاولات السابقة المرفوضة:\n${list.map((x,i)=>`[${i}] ${x}`).join('\n')}`));
+  if(!r.prompt)throw new Error('لم يُرجع Gemini برومبتاً. أعد المحاولة.');
+  list.push(r.prompt);save();cur==='ep'?renderEp():renderSeries();say(`تم: النسخة ${list.length-1}`,'ok');
+ }catch(e){say(e.message,'err')}
+ lock(false);
+}
 /* ---------- العرض ---------- */
 const cp=id=>P.copied[id]?' done':'';
+const pb=(id,text,label,k,n)=>`<div class="pb"><button class="${cp(id)}" data-id="${id}" data-text="${esc(text)}">${RISK.test(text)?'⚠ ':''}${label}</button><button class="sq" data-act="rg" data-k="${k}" data-n="${n}" title="إعادة توليد" aria-label="إعادة توليد">↻</button></div>`;
+const secBtn=(c,sg)=>{const pv=c.pv||[c.prompt],v=pv.length-1,id=`s:${c.code}:${v}`,t=sg+pv[v];return `<div class="pb"><button class="${cp(id)}" data-id="${esc(id)}" data-text="${esc(t)}"><b>${esc(c.code)}${v?' · '+v:''}</b>${RISK.test(t)?'⚠ ':''}${esc(c.name)}<small class="mut">${esc(c.type)}</small></button><button class="sq" data-act="rg" data-k="sc" data-code="${esc(c.code)}" title="إعادة توليد" aria-label="إعادة توليد">↻</button></div>`};
 function renderSeries(){
  const b=P.bible,sg=pre();
  $('v-series').innerHTML=`<div class="card"><h2>${esc(b.title)}</h2><p class="mut">${esc(b.logline)}</p><p class="mut small">الأبعاد ${esc(P.form?.ratio||'—')} · الستايل: ${esc(P.form?.style||'—')}</p><div class="row"><button class="alt" data-act="newb">أعد توليد الدليل</button><button class="alt" data-act="new">مشروع جديد</button></div></div>
  <div class="card"><h2>الشخصيات الرئيسية</h2><button class="${cp('hero')}" data-id="hero" data-text="${esc(heroPrompt(b))}" style="width:100%;margin-bottom:8px">انسخ برومبت صورة الأبطال معاً (المرجع الرئيسي)</button>${(b.main||[]).map(c=>`<details style="display:block"><summary>${esc(c.name)}</summary><p>${esc(c.desc)}</p></details>`).join('')}</div>
- <div class="card"><h2>الثانوية: انسخ برومبت الصورة المرجعية</h2><div class="chars">${(b.secondary||[]).map(c=>`<button class="${cp('s:'+c.code)}" data-id="s:${esc(c.code)}" data-text="${esc(sg+c.prompt)}"><b>${esc(c.code)}</b>${esc(c.name)}<small class="mut">${esc(c.type)}</small></button>`).join('')}</div></div>
+ <div class="card"><h2>الثانوية: انسخ برومبت الصورة المرجعية</h2><div class="chars">${(b.secondary||[]).map(c=>secBtn(c,sg)).join('')}</div></div>
  <div class="card"><h2>الحلقات</h2>${b.episodes.map(e=>`<div class="ep"><b>${e.n}. ${esc(e.title)}</b> <span class="mut small">${esc(e.value||'')}</span><textarea data-sum="${e.n}" rows="3">${esc(e.summary)}</textarea><div class="row"><button data-act="gen" data-n="${e.n}">${P.eps[e.n]?'افتح الحلقة':'ولّد الحلقة'}</button>${P.eps[e.n]?`<button class="alt" data-act="regen" data-n="${e.n}">أعد التوليد</button>`:''}</div></div>`).join('')}</div>`;
 }
 function renderEp(){
  const ep=P.eps[curEp],sg=pre();
  $('v-ep').innerHTML=`<div class="card"><button class="alt" data-act="back">‹ الحلقات</button><h2 style="margin-top:12px">الحلقة ${curEp}: ${esc(ep.title)}</h2>${ep.scenes.map(s=>`<div class="scene"><div class="num">${s.n}</div>
- <button class="${cp(curEp+':f'+s.n)}" data-id="${curEp}:f${s.n}" data-text="${esc(sg+s.first_frame_prompt)}">صورة أولى</button>
- <button class="${cp(curEp+':m'+s.n)}" data-id="${curEp}:m${s.n}" data-text="${esc(s.motion_prompt)}">تحريك M${s.n}</button>
+ ${pb(curEp+':f'+s.n+':'+(vers(s,'ff').length-1),sg+last(vers(s,'ff')),'صورة '+(vers(s,'ff').length-1),'ff',s.n)}
+ ${pb(curEp+':m'+s.n+':'+(vers(s,'mm').length-1),last(vers(s,'mm')),'تحريك M'+s.n+' · '+(vers(s,'mm').length-1),'mm',s.n)}
  ${(s.refs||[]).length?`<div class="ref">المراجع: ${s.refs.map(esc).join('، ')}</div>`:''}
  <div class="sum">${esc(s.summary)}</div>
- <details><summary>عرض النصوص</summary><p>${esc(s.first_frame_prompt)}</p><p>${esc(s.motion_prompt)}</p>${s.voice?`<p dir="rtl" style="text-align:right">${esc(s.voice)}</p>`:''}</details></div>`).join('')}</div>`;
+ <details><summary>عرض النصوص</summary><p>${esc(last(vers(s,'ff')))}</p><p>${esc(last(vers(s,'mm')))}</p>${s.voice?`<p dir="rtl" style="text-align:right">${esc(s.voice)}</p>`:''}</details></div>`).join('')}</div>`;
 }
 const opt=(k,a)=>a.map(([v,t])=>`<option value="${v}"${String(S[k])===String(v)?' selected':''}>${t}</option>`).join('');
 function renderSet(){
@@ -269,7 +304,7 @@ document.addEventListener('click',e=>{
  const b=e.target.closest('[data-act]');if(!b||busyF)return;
  const n=+b.dataset.n,A={mk:()=>makeBible(),newb:()=>makeBible(P.form),new:()=>show('home'),
   gen:()=>{if(P.eps[n]){curEp=n;show('ep')}else makeEp(n)},regen:()=>makeEp(n),back:()=>show('series'),back2:()=>show(prev),
-  imp:()=>$('impf').click(),models:listModels,wipe:()=>{if(confirm('حذف المشروع الحالي؟')){P=null;localStorage.removeItem('project');show('home')}},
+  imp:()=>$('impf').click(),rg:()=>regen(b),models:listModels,wipe:()=>{if(confirm('حذف المشروع الحالي؟')){P=null;localStorage.removeItem('project');show('home')}},
   exp:()=>{if(!P)return say('لا يوجد مشروع.','err');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(P,null,1)],{type:'application/json'}));a.download=(P.bible.title||'project')+'.json';a.click()}};
  A[b.dataset.act]?.();
 });
