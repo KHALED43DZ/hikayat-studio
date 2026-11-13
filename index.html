@@ -41,6 +41,7 @@ input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);borde
 .scene{display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
 .pb{display:flex;gap:6px;min-width:0}.pb>button:first-child{flex:1;min-width:0}
 .sq,.chars .sq{flex:0 0 44px;width:44px;padding:0;flex-direction:row;align-items:center;justify-content:center;background:transparent;color:var(--g2);border:1px solid var(--g2);font-size:20px}
+.chip{display:inline-block;padding:4px 10px;border-radius:999px;color:#fff;font-size:13px;margin:2px 0 2px 4px}.chip.pl{background:#1d6fa5}.chip.sc{background:#b8561c}
 .num{font-weight:800;font-size:20px;color:var(--r);text-align:center}
 .ref{grid-column:2;font-size:12px;color:var(--mut)}
 details{grid-column:1/3;font-size:13px;color:var(--mut)}
@@ -86,12 +87,12 @@ details p,.en{margin:6px 0;line-height:1.7;direction:ltr;text-align:left}
 <div id="status"></div><div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION='1.5.0'; /* غيّره عند كل تحديث */
+const APP_VERSION='1.6.0'; /* غيّره عند كل تحديث */
 const $=id=>document.getElementById(id);
 $('ver').textContent='v'+APP_VERSION;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const store={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
-let S=Object.assign({keys:'',model:'gemini-3.8-flash',modelCustom:'',fallback:'gemini-3.5-flash-lite',fbCustom:'',think:'low',darija:'full',dialogue:'clip',scenes:12,secs:10},store.get('settings',{}));
+let S=Object.assign({keys:'',model:'gemini-3.8-flash',modelCustom:'',fallback:'gemini-3.5-flash-lite',fbCustom:'',think:'low',placeImg:'off',darija:'full',dialogue:'clip',scenes:12,secs:10},store.get('settings',{}));
 let P=store.get('project',null),cool=store.get('cool2',{}),cur='home',prev='home',curEp=null,busyF=false,rot=0;
 const save=()=>store.set('project',P);
 const norm=m=>(m||'').trim().toLowerCase().replace(/^models\//,'').replace(/\s+/g,'-');
@@ -115,7 +116,7 @@ const SAFE=`قواعد السلامة (الصور تُولَّد بنموذج Na
 - الأحداث التاريخية الحساسة تُعرض بوقار: تُعرف الفترة بالأزياء والعمارة والإضاءة والأدوات اليومية، ويُعبَّر عن التضحية بالقيم والمشاعر لا بالمشاهد القاسية. الخصوم يظهرون ظلالاً من بعيد أو خارج الكادر.`;
 const RISK=/\b(gun|rifle|weapon\w*|bomb\w*|explo\w*|blood\w*|kill\w*|shoot\w*|corpse|dead|torture|massacre|violen\w*|attack\w*|fight\w*|battle|war|soldier\w*|prison\w*|execut\w*|terror\w*|wound\w*)\b/i;
 const last=a=>a[a.length-1];
-const vers=(s,k)=>s[k]||(s[k]=[s.prompt||s.motion_prompt||'']);
+const vers=(s,k)=>s[k]||(s[k]=[s.cast?{shot:s.shot,cast:s.cast,objects:s.objects,action:s.action,dialogue:s.dialogue,end:s.end}:(s.prompt||s.motion_prompt||'')]);
 function normBible(b){if(!b)return b;if(!b.places){const all=b.secondary||[];b.places=all.filter(c=>c.type==='place').map(c=>({name:c.name,prompt:c.prompt}));b.secondary=all.filter(c=>c.type!=='place')}b.secondary=b.secondary||[];return b}
 if(P)normBible(P.bible);
 const pick=(k,c)=>S[k]==='__custom'?norm(S[c]):S[k];
@@ -186,22 +187,24 @@ function parse(t){t=t.replace(/```json|```/g,'');const a=t.indexOf('{'),b=t.last
 
 /* ---------- البرومبتات ---------- */
 const bibleSys=f=>`أنت كاتب ومخرج لمسلسلات جزائرية قصيرة تُنتج كفيديوهات. من المعلومات العامة التي يقدمها المستخدم ابتكر مسلسلاً أصلياً (لا تقتبس عملاً موجوداً) فيه تراث جزائري حقيقي، ومحتواه آمن ومناسب للفئة العمرية. أخرج JSON فقط بلا شرح ولا Markdown.
-- main: 2-4 شخصيات رئيسية، لكل منها name بالعربية وdesc بالإنجليزية وصف بصري ثابت (العمر، الملامح، الشعر، اللباس بألوان محددة).
-- places: 3-8 أماكن رئيسية في القصة، لكل منها name عربي وprompt إنجليزي يصف المكان في أجمل حالاته كلقطة تعريفية واسعة بلا أشخاص (سيُجمع كل 4 أماكن في صورة مرجعية واحدة).
-- secondary: الشخصيات والعناصر الثانوية المتكررة فقط (ليست أماكن)، لكل منها name عربي وtype (character|object) وprompt إنجليزي يصف مظهرها لصورة مرجعية فردية.
+- main: 2-4 شخصيات رئيسية، لكل منها name بالعربية وface بالإنجليزية (شكل الرأس والوجه والعينان والأنف ولون البشرة وتسريحة الشعر ولونه والعمر الظاهر، بلا أي لباس) وbody بالإنجليزية (الطول نسبة للشخصيات الأخرى والبنية).
+- places: 3-8 أماكن رئيسية في القصة، لكل منها name اسم عربي بكلمة واحدة فقط (مثل: الطاحونة، المغارة) وprompt إنجليزي وصف ثابت ودقيق للمكان بلا أشخاص: الأرضية والجدران والألوان والإضاءة، وما يوجد على اليمين واليسار والوسط والخلفية وأهم القطع. يُلصق هذا الوصف حرفياً في كل مقطع فاجعله مكتملاً.
+- secondary: الشخصيات والعناصر الثانوية المتكررة فقط (ليست أماكن)، لكل منها name عربي وtype (character|object) وface وbody كما في main (للعنصر object ضع وصفه الكامل في face واترك body فارغاً).
 - style_guide: جملة إنجليزية واحدة للأسلوب البصري الموحد، مبنية على الستايل المطلوب (${f.style}) ومناسبة لكادر ${f.ratio}، ولا نصوص مكتوبة داخل الصور.
 - episodes: بالضبط ${f.eps} حلقة، لكل منها n وtitle وvalue (القيمة التربوية) وsummary عربي من 3-4 جمل. تتصاعد الأحداث وتنتهي بخاتمة مرضية.
 ${SAFE}
-{"title":"","logline":"","style_guide":"","main":[{"name":"","desc":""}],"places":[{"name":"","prompt":""}],"secondary":[{"name":"","type":"character","prompt":""}],"episodes":[{"n":1,"title":"","value":"","summary":""}]}`;
+{"title":"","logline":"","style_guide":"","main":[{"name":"","face":"","body":""}],"places":[{"name":"","prompt":""}],"secondary":[{"name":"","type":"character","face":"","body":""}],"episodes":[{"n":1,"title":"","value":"","summary":""}]}`;
 
-const epSys=()=>`أنت مخرج فيديو. حوّل ملخص الحلقة إلى ${S.scenes} مشهداً بالضبط، مدة كل مشهد ${S.secs} ثوانٍ، وحافظ على اتساق القصة مع الحلقات السابقة. أخرج JSON فقط بلا شرح.
-- لدى المنتج صور مرجعية جاهزة يرفعها مع كل مقطع: صورة للشخصيات الرئيسية، وصورة للأماكن، وصور فردية للشخصيات والعناصر الثانوية. لذلك لا تصف أشكال الشخصيات ولا ملامح الأماكن إطلاقاً.
-- prompt: برومبت مقطع فيديو واحد بالإنجليزية لنموذج Gemini Omni، يصف الحدث وحركة الكاميرا وحركة الشخصيات والإضاءة والجو خلال ${S.secs} ثوانٍ. أشر للشخصيات بأسمائها العربية كما وردت في الدليل بين علامتي تنصيص، مثل the character "اسم". ${S.dialogue==='clip'?'ضمّن حواراً منطوقاً قصيراً بالدارجة الجزائرية بين علامتي تنصيص مع اسم المتكلم يناسب المدة.':'لا تضمّن حواراً منطوقاً، واكتب تعليقاً صوتياً قصيراً بالدارجة في الحقل voice.'}
-- ${S.darija==='full'?'الدارجة الجزائرية كاملة':'دارجة قريبة من الفصحى'} مكتوبة بالحروف العربية.
-- place: اسم المكان حرفياً من قائمة places. main: أسماء الشخصيات الرئيسية الظاهرة. chars: أسماء الشخصيات والعناصر الثانوية الظاهرة حرفياً من الدليل (فارغة إن لم يظهر أحد).
+const epSys=()=>`أنت مخرج فيديو. حوّل ملخص الحلقة إلى ${S.scenes} مشهداً بالضبط، مدة كل مشهد ${S.secs} ثوانٍ، واحفظ اتساق القصة مع الحلقات السابقة. أخرج JSON فقط بلا شرح.
+لدى المنتج صورة مرجعية لرؤوس الشخصيات (أمامي وجانبي) يرفعها مع كل مقطع. لذلك لا تصف الوجوه ولا أجسام الشخصيات ولا المكان، فهي ثابتة في الدليل. أنت تحدد اللباس والكاميرا والمواضع.
+- wardrobe: لكل شخصية تظهر في الحلقة (name حرفياً) outfit إنجليزي كامل بألوان محددة يناسب زمن القصة، ويبقى ثابتاً طوال الحلقة.
+- لكل مشهد: place (اسم المكان حرفياً من الدليل)، shot (size حجم اللقطة، angle الزاوية، move حركة الكاميرا)، cast (لكل شخصية ظاهرة: name حرفياً، pos موضعها الدقيق نسبة إلى الكادر وعناصر المكان مثل "left third of the frame, beside the stone well"، pose وقوف أو جلوس أو انحناء بتفاصيله، facing اتجاه الوجه والجسد نسبة للكاميرا مثل "three-quarter left" أو "profile right" أو "back to camera"، action حركتها خلال ${S.secs} ثوانٍ)، objects (أسماء العناصر الثانوية الظاهرة)، action (الحدث بالإنجليزية في جملتين)، dialogue، end (إنجليزي قصير: أين تنتهي كل شخصية).
+- نوّع اللقطات: لا يتكرر حجم اللقطة والزاوية معاً في مشهدين متتاليين داخل المكان نفسه (وسّع، قرّب، بدّل الزاوية، لقطة من فوق كتف شخصية، لقطة جانبية...). ويبدأ كل مشهد من مواضع نهاية المشهد السابق إلا إذا تغيّر المكان أو مرّ وقت.
+- ${S.dialogue==='clip'?'dialogue: حوار منطوق قصير بالدارجة بين علامتي تنصيص مع اسم المتكلم يناسب المدة.':'dialogue فارغ، وتعليق صوتي قصير بالدارجة في الحقل voice.'} الدارجة ${S.darija==='full'?'الجزائرية كاملة':'قريبة من الفصحى'} بالحروف العربية.
+- لا تُظهر أي كتابة في الفيديو إطلاقاً: لا ترجمات ولا عناوين ولا لافتات ولا أسماء ولا أحرف مكتوبة.
 - التكوين مناسب لكادر ${P?.form?.ratio||'16:9'}. أول مشهد يجذب الانتباه، وآخره يمهد للحلقة التالية (أو يختم المسلسل إن كانت الأخيرة).
 ${SAFE}
-{"title":"","scenes":[{"n":1,"summary":"سطر عربي","prompt":"","place":"","main":[""],"chars":[""],"voice":""}]}`;
+{"title":"","wardrobe":[{"name":"","outfit":""}],"scenes":[{"n":1,"summary":"سطر عربي","place":"","shot":{"size":"","angle":"","move":""},"cast":[{"name":"","pos":"","pose":"","facing":"","action":""}],"objects":[""],"action":"","dialogue":"","voice":"","end":""}]}`;
 
 /* ---------- إنشاء الدليل والحلقات ---------- */
 async function makeBible(f){
@@ -222,28 +225,36 @@ async function makeEp(n){
  const prevS=b.episodes.filter(e=>e.n<n).map(e=>`${e.n}. ${e.title}: ${e.summary}`).join('\n')||'لا يوجد';
  lock(true);
  try{
-  const r=parse(await gem(epSys(),`الدليل:\n${JSON.stringify({main:(b.main||[]).map(x=>x.name),places:(b.places||[]).map(x=>x.name),secondary:(b.secondary||[]).map(x=>({name:x.name,type:x.type}))})}\n\nالحلقات السابقة:\n${prevS}\n\nالحلقة المطلوبة:\n${JSON.stringify(ep)}`));
-  if(!Array.isArray(r.scenes)||!r.scenes.length)throw new Error('لم يُرجع Gemini مشاهد. أعد المحاولة.');
+  const r=parse(await gem(epSys(),`الدليل:\n${JSON.stringify({characters:[...(b.main||[]),...(b.secondary||[])].map(c=>({name:c.name,type:c.type||'character',look:look(c)})),places:(b.places||[]).map(x=>({name:x.name,layout:last(x.pv||[x.prompt])}))})}\n\nالحلقات السابقة:\n${prevS}\n\nالحلقة المطلوبة:\n${JSON.stringify(ep)}`));
+  if(!Array.isArray(r.scenes)||!r.scenes.length||!Array.isArray(r.scenes[0].cast))throw new Error('لم يُرجع Gemini مشاهد مكتملة. أعد المحاولة.');r.wardrobe=Object.fromEntries((r.wardrobe||[]).map(w=>[w.name,w.outfit]));
   P.eps[n]=r;Object.keys(P.copied).filter(k=>k.startsWith(n+':')).forEach(k=>delete P.copied[k]);
   save();curEp=n;show('ep');say(`تم: ${r.scenes.length} مشهداً`,'ok');
  }catch(e){say(e.message,'err')}
  lock(false);
 }
 
-const regenSys=()=>`أعد كتابة برومبت رُفض من نموذج توليد (غالباً بسبب سياسة المحتوى أو قيود صارمة). أخرج JSON فقط: {"prompt":"..."}
-- حافظ على نفس المعنى والحدث، لكن بصياغة أكثر تحفظاً: حوّل أي إشارة لعنف أو سلاح أو خطر أو حساسية إلى وصف بصري محايد (لقطة بعيدة، ظلال، إضاءة، تعابير هادئة).
-- كل محاولة أكثر تحفظاً من السابقة وبزاوية أو تكوين مختلف، ولا تكرر أي محاولة سابقة.
-- للصورة المرجعية: وصف إنجليزي للمظهر فقط. لمقطع الفيديو: إنجليزي، لا تصف الشخصيات ولا المكان فهي في الصور المرجعية، وأشر للشخصيات بأسمائها العربية بين علامتي تنصيص، والحوار بالدارجة الجزائرية بين علامتي تنصيص إن وُجد، ومدته ${S.secs} ثوانٍ.
+const regenPlaceSys=()=>`أعد كتابة وصف مكان لصورة مرجعية رُفض توليدها (غالباً لقيود المحتوى). أخرج JSON فقط: {"prompt":"..."}
+- نفس المكان وتخطيطه (ما على اليمين واليسار والوسط والخلفية) بصياغة أكثر تحفظاً، بلا أشخاص، وأكثر تحفظاً من كل محاولة سابقة. إنجليزي.
+${SAFE}`;
+const regenSceneSys=()=>`أعد كتابة بنية مقطع فيديو رُفض من نموذج توليد (غالباً لقيود المحتوى). أخرج JSON فقط: {"shot":{"size":"","angle":"","move":""},"cast":[{"name":"","pos":"","pose":"","facing":"","action":""}],"objects":[""],"action":"","dialogue":"","end":""}
+- نفس المعنى والأحداث بصياغة أكثر تحفظاً، وبحجم لقطة وزاوية ومواضع مختلفة عن المحاولات السابقة، ولا تكرر أياً منها.
+- مواضع الشخصيات دقيقة نسبة إلى الكادر وعناصر المكان، واتجاه الوجه أو الجسد واضح.
+- لا تصف الوجوه ولا اللباس ولا المكان. الأسماء حرفياً. الحوار بالدارجة الجزائرية بين علامتي تنصيص، ومدة المقطع ${S.secs} ثوانٍ.
 ${SAFE}`;
 async function regen(b){
- const k=b.dataset.k,sc=k==='sc',it=sc?P.bible.secondary.find(x=>x.name===b.dataset.code):P.eps[curEp].scenes.find(x=>x.n==b.dataset.n);
- const list=sc?(it.pv||(it.pv=[it.prompt])):vers(it,'vv');
- const kind=sc?'وصف مظهر لصورة مرجعية فردية (Nano Banana)':'برومبت مقطع فيديو (Gemini Omni)';
- lock(true);
+ const k=b.dataset.k;lock(true);
  try{
-  const r=parse(await gem(regenSys(),`النوع: ${kind}\nرقم المحاولة: ${list.length}\n${sc?'الاسم: '+it.name:'ملخص المشهد: '+it.summary+'\nالمكان: '+(it.place||'')+'\nالأبطال: '+(it.main||[]).join('، ')+'\nثانويات: '+(it.chars||[]).join('، ')}\nالستايل: ${P.bible.style_guide||''}\nالشخصيات الرئيسية: ${JSON.stringify(P.bible.main)}\nالمحاولات السابقة المرفوضة:\n${list.map((x,i)=>`[${i}] ${x}`).join('\n')}`));
-  if(!r.prompt)throw new Error('لم يُرجع Gemini برومبتاً. أعد المحاولة.');
-  list.push(r.prompt);save();cur==='ep'?renderEp():renderSeries();say(`تم: النسخة ${list.length-1}`,'ok');
+  if(k==='pl'){
+   const it=P.bible.places.find(x=>x.name===b.dataset.code),list=it.pv||(it.pv=[it.prompt]);
+   const r=parse(await gem(regenPlaceSys(),`اسم المكان: ${it.name}\nرقم المحاولة: ${list.length}\nالأوصاف السابقة المرفوضة:\n${list.map((x,j)=>`[${j}] ${x}`).join('\n')}`));
+   if(!r.prompt)throw new Error('لم يُرجع Gemini وصفاً. أعد المحاولة.');
+   list.push(r.prompt);save();renderSeries();say(`تم: النسخة ${list.length-1}`,'ok');
+  }else{
+   const ep=P.eps[curEp],it=ep.scenes.find(x=>x.n==b.dataset.n),list=vers(it,'vv'),pl=(P.bible.places||[]).find(p=>p.name===it.place),pv=ep.scenes[ep.scenes.indexOf(it)-1],L=last(list),pe=pv&&typeof last(vers(pv,'vv'))==='object'?last(vers(pv,'vv')).end||'':'';
+   const r=parse(await gem(regenSceneSys(),`رقم المحاولة: ${list.length}\nملخص المشهد: ${it.summary}\nالمكان: ${it.place||''} — ${pl?last(pl.pv||[pl.prompt]):''}\nالشخصيات: ${(typeof L==='object'?L.cast.map(c=>c.name):(it.main||[])).join('، ')}\nنهاية المشهد السابق: ${pe}\nالمحاولات السابقة المرفوضة:\n${list.map((x,j)=>`[${j}] ${JSON.stringify(x)}`).join('\n')}`));
+   if(!Array.isArray(r.cast)||!r.cast.length)throw new Error('رد غير مكتمل. أعد المحاولة.');
+   list.push(r);save();renderEp();say(`تم: المقطع ${list.length-1}`,'ok');
+  }
  }catch(e){say(e.message,'err')}
  lock(false);
 }
@@ -252,32 +263,42 @@ const cp=id=>P.copied[id]?' done':'';
 const sty=()=>P?.bible?.style_guide?P.bible.style_guide+'. ':'';
 const sq=(k,n,code)=>`<button class="sq" data-act="rg" data-k="${k}" data-n="${n||''}" data-code="${esc(code||'')}" title="إعادة توليد" aria-label="إعادة توليد">↻</button>`;
 const pb=(id,text,label,k,n)=>`<div class="pb"><button class="${cp(id)}" data-id="${esc(id)}" data-text="${esc(text)}">${RISK.test(text)?'⚠ ':''}${label}</button>${sq(k,n)}</div>`;
-const placePrompt=(g,b)=>{const n=g.length,lay=n===4?'2x2 grid':n===1?'single panel':`row of ${n} panels`;
- return `Ultra-high-resolution 4K environment reference sheet on a pure white background, horizontal 16:9 canvas. A ${lay} of ${n} separate establishing shots of the story locations, with thin straight divider lines between the panels. Below each panel, a caption with the location name in clean readable Arabic text: ${g.map((p,i)=>`${i+1}) "${p.name}"`).join(', ')}. No people in the panels. Same art style (${b.style_guide||'consistent style'}), maximum detail and sharpness. `+g.map((p,i)=>`Panel ${i+1} (${p.name}): ${p.prompt}.`).join(' ')};
-const secText=c=>`Ultra-high-resolution 4K reference image on a pure white background, ${c.type==='object'?'object centered and clearly visible':'full body from head to toe, front view, neutral pose'}, with the name in clean readable Arabic text below: "${c.name}". ${sty()}${last(c.pv||[c.prompt])}`;
-const secBtn=c=>{const v=(c.pv||[c.prompt]).length-1,id=`s:${c.name}:${v}`,t=secText(c);return `<div class="pb"><button class="${cp(id)}" data-id="${esc(id)}" data-text="${esc(t)}"><b>${esc(c.name)}${v?' · '+v:''}</b>${RISK.test(t)?'⚠ ':''}<small class="mut">${c.type==='object'?'عنصر':'شخصية'}</small></button>${sq('sc','',c.name)}</div>`};
+const placeText=p=>`Ultra-high-resolution 4K location reference image on a pure white background. A single image showing the same place from several camera angles, as a clean collage of 4 panels (a wide establishing shot, a different side angle, a closer detail shot, and another view of the place) separated by thin straight divider lines. The place stays identical in all panels: same architecture, colors and lighting. No people. Below the collage, one single word in clean readable Arabic text: "${p.name}". Same art style (${P.bible.style_guide||'consistent style'}), maximum detail and sharpness. ${last(p.pv||[p.prompt])}`;
+const placeBtn=p=>{const v=(p.pv||[p.prompt]).length-1,id=`pl:${p.name}:${v}`,t=placeText(p);return `<div class="pb" style="margin-bottom:8px"><button class="${cp(id)}" data-id="${esc(id)}" data-text="${esc(t)}">${RISK.test(t)?'⚠ ':''}صورة مكان: ${esc(p.name)}${v?' · '+v:''}</button>${sq('pl','',p.name)}</div>`};
 const refBtn=(id,t,label)=>`<button class="${cp(id)}" data-id="${id}" data-text="${esc(t)}" style="width:100%;margin-bottom:8px">${label}</button>`;
-const clipText=(s,text)=>{const pl=P.bible.places||[],i=pl.findIndex(p=>p.name===s.place),q=x=>`"${x}"`;
- return pre()+'Use the attached reference images to keep characters and places consistent.'
- +((s.main||[]).filter(Boolean).length?` Main characters in this shot, as labeled in the attached character reference sheet: ${s.main.filter(Boolean).map(q).join(', ')}.`:'')
- +(s.place?` Setting: the location labeled ${q(s.place)} in the attached places reference sheet${pl.length>4&&i>=0?` (sheet ${Math.floor(i/4)+1})`:''}.`:'')
- +((s.chars||[]).filter(Boolean).length?` Additional reference images attached for: ${s.chars.filter(Boolean).map(q).join(', ')}.`:'')+' '+text};
+const charList=b=>[...(b.main||[]),...(b.secondary||[])];
+const look=c=>c?[c.face||c.desc,c.body].filter(Boolean).join('; '):'';
+const chunk=(a,n)=>{const o=[];for(let i=0;i<a.length;i+=n)o.push(a.slice(i,i+n));return o};
+const headsList=b=>[...(b.main||[]),...(b.secondary||[]).filter(c=>c.type!=='object')];
+const headsPrompt=(g,b)=>{const n=g.length,lay=n<=3?`row of ${n} card${n>1?'s':''}`:`grid of ${Math.ceil(n/3)} rows with up to 3 cards per row`;
+ return `Ultra-high-resolution 4K character head reference sheet on a pure white background, horizontal 16:9 canvas. A ${lay}, ${n} card${n>1?'s':''} in total, separated by thin straight divider lines. Each card shows ONE character's head and neck only (no body, no clothing): a front-view portrait and a side-profile portrait side by side, neutral calm expression, plain white backdrop. Below each card, the character's name in clean readable Arabic text: ${g.map((c,i)=>`${i+1}) "${c.name}"`).join(', ')}. Same art style (${b.style_guide||'consistent style'}), maximum detail and sharpness. `+g.map((c,i)=>`Card ${i+1} (${c.name}): ${c.face||c.desc}.`).join(' ')};
+const NOTEXT=' Do not show any text, subtitles, captions, watermarks, signs or written letters anywhere in the video, and do not show the name captions from the reference images.';
+function clipText(s,ep){
+ const v=last(vers(s,'vv')),B=P.bible;
+ if(typeof v==='string')return pre()+'Use the attached reference images to keep characters and places consistent. '+v+NOTEXT;
+ const pl=(B.places||[]).find(p=>p.name===s.place),w=ep.wardrobe||{},cd=n=>charList(B).find(c=>c.name===n);
+ return [pre()+'Use the attached character head reference sheet (front and side portraits) only for faces and identity; clothing, setting and positions are specified below.',
+  'Camera: '+[v.shot?.size,v.shot?.angle,v.shot?.move].filter(Boolean).join(', ')+'.',
+  s.place?`Setting "${s.place}": ${pl?last(pl.pv||[pl.prompt]):''}${S.placeImg==='on'?' (matches the attached reference image of this place)':''}`:'',
+  'Characters:\n'+(v.cast||[]).map(c=>`- "${c.name}": ${look(cd(c.name))}.${w[c.name]?' Wearing: '+w[c.name]+'.':''} Position: ${c.pos||''}. ${c.pose||''}, facing ${c.facing||''}. ${c.action||''}`).join('\n'),
+  (v.objects||[]).filter(Boolean).length?'Objects: '+v.objects.filter(Boolean).map(n=>`"${n}": ${look(cd(n))}`).join('; '):'',
+  'Action: '+(v.action||''),
+  v.dialogue?'Spoken dialogue (Algerian Arabic dialect): '+v.dialogue:''].filter(Boolean).join('\n')+'\n'+NOTEXT.trim()}
 function renderSeries(){
- const b=P.bible,sheets=[];for(let i=0;i<(b.places||[]).length;i+=4)sheets.push(b.places.slice(i,i+4));
+ const b=P.bible,hs=chunk(headsList(b),6);
  $('v-series').innerHTML=`<div class="card"><h2>${esc(b.title)}</h2><p class="mut">${esc(b.logline)}</p><p class="mut small">الأبعاد ${esc(P.form?.ratio||'—')} · الستايل: ${esc(P.form?.style||'—')}</p><div class="row"><button class="alt" data-act="newb">أعد توليد الدليل</button><button class="alt" data-act="new">مشروع جديد</button></div></div>
- <div class="card"><h2>الصور المرجعية (ارفعها مع كل مقطع)</h2><p class="mut small">أنشئها مرة واحدة بأعلى جودة وحجم يتيحهما Nano Banana.</p>
- ${refBtn('hero',heroPrompt(b),'صورة الشخصيات الرئيسية')}
- ${sheets.map((g,i)=>refBtn('place'+i,placePrompt(g,b),'صورة الأماكن'+(sheets.length>1?` (${i+1} من ${sheets.length})`:'')+' — '+g.map(p=>esc(p.name)).join('، '))).join('')||'<p class="mut small">لا توجد أماكن في هذا الدليل. أعد توليده.</p>'}</div>
- <div class="card"><h2>الشخصيات الرئيسية</h2>${(b.main||[]).map(c=>`<details style="display:block"><summary>${esc(c.name)}</summary><p>${esc(c.desc)}</p></details>`).join('')}</div>
- <div class="card"><h2>الشخصيات والعناصر الثانوية (صورة فردية لكل منها)</h2><div class="chars">${(b.secondary||[]).map(secBtn).join('')||'<p class="mut small">لا يوجد</p>'}</div></div>
+ <div class="card"><h2>الصور المرجعية (ارفعها مع كل مقطع)</h2><p class="mut small">صورة رؤوس الشخصيات فقط (أمامي وجانبي) بأعلى جودة. اللباس والمكان والمواضع تُكتب في برومبت كل مقطع.</p>
+ ${hs.map((g,i)=>refBtn('heads'+i,headsPrompt(g,b),'صورة رؤوس الشخصيات'+(hs.length>1?` (${i+1} من ${hs.length})`:'')+' — '+g.map(c=>esc(c.name)).join('، '))).join('')||'<p class="mut small">لا توجد شخصيات. أعد توليد الدليل.</p>'}
+ ${S.placeImg==='on'?(b.places||[]).map(placeBtn).join(''):''}</div>
+ <div class="card"><h2>الأوصاف الثابتة</h2>${charList(b).map(c=>`<details style="display:block"><summary>${esc(c.name)}</summary><p>${esc(look(c))}</p></details>`).join('')}${(b.places||[]).map(p=>`<details style="display:block"><summary>📍 ${esc(p.name)}</summary><p>${esc(last(p.pv||[p.prompt]))}</p></details>`).join('')}</div>
  <div class="card"><h2>الحلقات</h2>${b.episodes.map(e=>`<div class="ep"><b>${e.n}. ${esc(e.title)}</b> <span class="mut small">${esc(e.value||'')}</span><textarea data-sum="${e.n}" rows="3">${esc(e.summary)}</textarea><div class="row"><button data-act="gen" data-n="${e.n}">${P.eps[e.n]?'افتح الحلقة':'ولّد الحلقة'}</button>${P.eps[e.n]?`<button class="alt" data-act="regen" data-n="${e.n}">أعد التوليد</button>`:''}</div></div>`).join('')}</div>`;
 }
 function renderEp(){
- const ep=P.eps[curEp],pl=P.bible.places||[];
- $('v-ep').innerHTML=`<div class="card"><button class="alt" data-act="back">‹ الحلقات</button><h2 style="margin-top:12px">الحلقة ${curEp}: ${esc(ep.title)}</h2>${ep.scenes.map(s=>{
-  const a=vers(s,'vv'),v=a.length-1,i=pl.findIndex(p=>p.name===s.place),t=clipText(s,a[v]);
-  const info=[s.place?'المكان: '+esc(s.place)+(pl.length>4&&i>=0?` (صورة الأماكن ${Math.floor(i/4)+1})`:''):'',(s.main||[]).filter(Boolean).length?'الأبطال: '+s.main.filter(Boolean).map(esc).join('، '):'',(s.chars||[]).filter(Boolean).length?'<b>ارفع أيضاً:</b> '+s.chars.filter(Boolean).map(esc).join('، '):''].filter(Boolean).join(' · ');
-  return `<div class="scene"><div class="num">${s.n}</div>${pb(curEp+':v'+s.n+':'+v,t,'مقطع '+v,'vv',s.n)}${info?`<div class="ref">${info}</div>`:''}<div class="sum">${esc(s.summary)}</div><details><summary>عرض النص</summary><p>${esc(t)}</p>${s.voice?`<p dir="rtl" style="text-align:right">${esc(s.voice)}</p>`:''}</details></div>`}).join('')}</div>`;
+ const ep=P.eps[curEp],w=ep.wardrobe||{},names=Object.keys(w);
+ $('v-ep').innerHTML=`<div class="card"><button class="alt" data-act="back">‹ الحلقات</button><h2 style="margin-top:12px">الحلقة ${curEp}: ${esc(ep.title)}</h2>${names.length?`<details style="display:block"><summary>لباس الحلقة (تعديله يحدّث كل المقاطع)</summary>${names.map(n=>`<label>${esc(n)}</label><input data-ward="${esc(n)}" value="${esc(w[n])}" dir="ltr">`).join('')}</details>`:''}${ep.scenes.map(s=>{
+  const a=vers(s,'vv'),v=a.length-1,L=a[v],t=clipText(s,ep),nm=typeof L==='object'?(L.cast||[]).map(c=>c.name):(s.main||[]);
+  const info=(s.place?`<span class="chip pl">المكان: ${esc(s.place)}</span>`:'')+nm.filter(Boolean).map(c=>`<span class="chip sc">${esc(c)}</span>`).join('');
+  return `<div class="scene"><div class="num">${s.n}</div>${pb(curEp+':v'+s.n+':'+v+':'+JSON.stringify(w).length,t,'مقطع '+v,'vv',s.n)}${info?`<div class="ref">${info}</div>`:''}<div class="sum">${esc(s.summary)}</div><details><summary>عرض النص</summary><p>${esc(t).replace(/\n/g,'<br>')}</p>${s.voice?`<p dir="rtl" style="text-align:right">${esc(s.voice)}</p>`:''}</details></div>`}).join('')}</div>`;
 }
 const opt=(k,a)=>a.map(([v,t])=>`<option value="${v}"${String(S[k])===String(v)?' selected':''}>${t}</option>`).join('');
 function renderSet(){
@@ -294,6 +315,7 @@ function renderSet(){
  <label>مستوى الدارجة</label><select data-set="darija">${opt('darija',[['full','دارجة جزائرية كاملة'],['light','قريبة من الفصحى']])}</select>
  <label>الحوار</label><select data-set="dialogue">${opt('dialogue',[['clip','ينطقه نموذج الفيديو داخل المقطع'],['voice','تعليق صوتي يُضاف لاحقاً']])}</select>
  
+ <label>صورة الأماكن المرجعية</label><select data-set="placeImg">${opt('placeImg',[['off','بلا (الوصف الثابت نصاً فقط)'],['on','أريد صورة أماكن مرجعية']])}</select>
  <label>عدد المشاهد</label><input data-set="scenes" type="number" min="4" max="20" value="${S.scenes}">
  <label>مدة المقطع بالثواني</label><input data-set="secs" type="number" min="4" max="12" value="${S.secs}"></div>
  <div class="card"><h2>المشروع</h2><div class="row"><button data-act="exp">تصدير</button><button class="alt" data-act="imp">استيراد</button><button class="alt" data-act="wipe">مسح المشروع</button></div></div>`;
@@ -322,7 +344,8 @@ document.addEventListener('click',e=>{
  A[b.dataset.act]?.();
 });
 document.addEventListener('input',e=>{const k=e.target.dataset.set;if(!k)return;S[k]=e.target.type==='number'?+e.target.value:e.target.value;store.set('settings',S);if(k==='keys')keyList();if(['model','fallback','think'].includes(k))renderSet()});
-document.addEventListener('change',e=>{const n=e.target.dataset.sum;if(n&&P){P.bible.episodes.find(x=>x.n==n).summary=e.target.value;save()}});
+document.addEventListener('change',e=>{const wn=e.target.dataset.ward;if(wn!==undefined&&P){P.eps[curEp].wardrobe[wn]=e.target.value;save();renderEp();return}
+ const n=e.target.dataset.sum;if(n&&P){P.bible.episodes.find(x=>x.n==n).summary=e.target.value;save()}});
 $('impf').onchange=async e=>{try{const d=JSON.parse(await e.target.files[0].text());if(!d.bible?.episodes)throw 0;normBible(d.bible);P=d;P.eps=P.eps||{};P.copied=P.copied||{};save();show('series');say('تم الاستيراد.','ok')}catch{say('ملف غير صالح.','err')}};
 
 $('status').onclick=()=>say('');
