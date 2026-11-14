@@ -103,7 +103,7 @@ video,.mgimg{width:100%;border-radius:8px;margin-top:8px}
 <div id="status"></div><div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION='1.9.0'; /* غيّره عند كل تحديث */
+const APP_VERSION='1.9.1'; /* غيّره عند كل تحديث */
 const $=id=>document.getElementById(id);
 $('ver').textContent='v'+APP_VERSION;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -291,7 +291,7 @@ async function regen(b){
 const cp=id=>P.copied[id]?' done':'';
 const sty=()=>P?.bible?.style_guide?P.bible.style_guide+'. ':'';
 const sq=(k,n,code)=>`<button class="sq" data-act="rg" data-k="${k}" data-n="${n||''}" data-code="${esc(code||'')}" title="إعادة توليد" aria-label="إعادة توليد">↻</button>`;
-const pb=(id,text,label,k,n)=>`<div class="pb"><button class="${cp(id)}" data-id="${esc(id)}" data-text="${esc(text)}">${RISK.test(text)?'⚠ ':''}${label}</button>${sq(k,n)}</div>`;
+const pb=(id,text,label,k,n,x='')=>`<div class="pb"><button class="${cp(id)}" data-id="${esc(id)}" data-text="${esc(text)}">${RISK.test(text)?'⚠ ':''}${label}</button>${x}${sq(k,n)}</div>`;
 const placeText=p=>`Ultra-high-resolution 4K location reference image on a pure white background. A single image showing the same place from several camera angles, as a clean collage of 4 panels (a wide establishing shot, a different side angle, a closer detail shot, and another view of the place) separated by thin straight divider lines. The place stays identical in all panels: same architecture, colors and lighting. No people. Below the collage, one single word in clean readable Arabic text: "${p.name}". Same art style (${P.bible.style_guide||'consistent style'}), maximum detail and sharpness. ${last(p.pv||[p.prompt])}`;
 const placeBtn=p=>{const v=(p.pv||[p.prompt]).length-1,id=`pl:${p.name}:${v}`,t=placeText(p);return `<div class="pb" style="margin-bottom:8px"><button class="${cp(id)}" data-id="${esc(id)}" data-text="${esc(t)}">${RISK.test(t)?'⚠ ':''}صورة مكان: ${esc(p.name)}${v?' · '+v:''}</button>${sq('pl','',p.name)}</div>`};
 const refBtn=(id,t,label)=>`<button class="${cp(id)}" data-id="${id}" data-text="${esc(t)}" style="width:100%;margin-bottom:8px">${label}</button>`;
@@ -327,14 +327,15 @@ function renderSeries(){
  <div class="card"><h2>الحلقات</h2>${b.episodes.map(e=>`<div class="ep"><b>${e.n}. ${esc(e.title)}</b> <span class="mut small">${esc(e.value||'')}</span><textarea data-sum="${e.n}" rows="3">${esc(e.summary)}</textarea><div class="row"><button data-act="gen" data-n="${e.n}">${P.eps[e.n]?'افتح الحلقة':'ولّد الحلقة'}</button>${P.eps[e.n]?`<button class="alt" data-act="regen" data-n="${e.n}">أعد التوليد</button>`:''}</div></div>`).join('')}</div>`;
 }
 const chains=sc=>{const g=[];let c=null;sc.forEach((s,i)=>{if(i>0&&s.cont&&c){c.e=s.n;c.items.push(s.n)}else{c={s:s.n,e:s.n,items:[s.n]};g.push(c)}});return g.filter(x=>x.items.length>1)};
-function renderEp(){
+async function renderEp(){
+ const have=new Set();for(const x of P.eps[curEp].scenes)if(await getRec(x.n))have.add(x.n);
  const ep=P.eps[curEp],w=ep.wardrobe||{},names=Object.keys(w),sc=ep.scenes,COL=['#c0392b','#2e86de','#d68910','#8e44ad'],info={};
  chains(sc).forEach((g,gi)=>g.items.forEach((n,k)=>{info[n]={c:COL[gi%4],pos:k===0?'first':k===g.items.length-1?'last':'mid',tag:k===0?`مشهد متصل ${g.s}–${g.e}`:''}}));
- $('v-ep').innerHTML=`<div class="card"><div class="row"><button class="alt" data-act="back">‹ الحلقات</button><button data-act="mg">رفع المقاطع ودمجها ›</button></div><h2 style="margin-top:12px">الحلقة ${curEp}: ${esc(ep.title)}</h2><div id="frameBox"></div>${names.length?`<details style="display:block"><summary>لباس الحلقة (تعديله يحدّث كل المقاطع)</summary>${names.map(n=>`<label>${esc(n)}</label><input data-ward="${esc(n)}" value="${esc(w[n])}" dir="ltr">`).join('')}</details>`:''}${sc.map((s,i)=>{
+ $('v-ep').innerHTML=`<div class="card"><div class="row"><button class="alt" data-act="back">‹ الحلقات</button><button data-act="mg">التالي: دمج الحلقة ›</button></div><h2 style="margin-top:12px">الحلقة ${curEp}: ${esc(ep.title)}</h2><p class="mut small">المقاطع المرفوعة: ${have.size} من ${sc.length} (ارفع كل مقطع بزر ⬆ بجانب برومبته)</p><div id="frameBox"></div>${names.length?`<details style="display:block"><summary>لباس الحلقة (تعديله يحدّث كل المقاطع)</summary>${names.map(n=>`<label>${esc(n)}</label><input data-ward="${esc(n)}" value="${esc(w[n])}" dir="ltr">`).join('')}</details>`:''}${sc.map((s,i)=>{
   const a=vers(s,'vv'),v=a.length-1,L=a[v],t=clipText(s,ep),nm=typeof L==='object'?(L.cast||[]).map(c=>c.name):(s.main||[]),ci=info[s.n];
   const chips=(s.place?`<span class="chip pl">المكان: ${esc(s.place)}</span>`:'')+nm.filter(Boolean).map(c=>`<span class="chip sc">${esc(c)}</span>`).join('')+(s.cont&&i>0?'<span class="chip ct">↳ يكمل السابق</span>':'');
   const act=(i>0?`<button class="lnk" data-act="lnk" data-n="${s.n}">${s.cont?'🔗 فكّ الربط':'🔗 اربط بالسابق'}</button>`:'')+(s.cont&&i>0&&S.contMode==='frame'?`<button class="lnk" data-act="fr" data-n="${sc[i-1].n}">🖼 آخر إطار للمقطع السابق</button>`:'');
-  return `${ci&&ci.tag?`<div class="gtag" style="color:${ci.c}">${ci.tag}</div>`:''}<div class="scene${ci?' ch '+ci.pos:''}"${ci?` style="--c:${ci.c}"`:''}><div class="num">${s.n}</div>${pb(curEp+':v'+s.n+':'+v+':'+JSON.stringify(w).length+':'+(s.cont?1:0),t,'مقطع '+v,'vv',s.n)}<div class="ref">${chips}${act}</div><div class="sum">${esc(s.summary)}</div><details><summary>عرض النص</summary><p>${esc(t).replace(/\n/g,'<br>')}</p>${s.voice?`<p dir="rtl" style="text-align:right">${esc(s.voice)}</p>`:''}</details></div>`}).join('')}</div>`;
+  return `${ci&&ci.tag?`<div class="gtag" style="color:${ci.c}">${ci.tag}</div>`:''}<div class="scene${ci?' ch '+ci.pos:''}"${ci?` style="--c:${ci.c}"`:''}><div class="num">${s.n}</div>${pb(curEp+':v'+s.n+':'+v+':'+JSON.stringify(w).length+':'+(s.cont?1:0),t,'مقطع '+v,'vv',s.n,`<button class="sq${have.has(s.n)?' done':''}" data-act="pick" data-n="${s.n}" title="رفع فيديو المقطع" aria-label="رفع فيديو المقطع">⬆</button>`)}<div class="ref">${chips}${act}</div><div class="sum">${esc(s.summary)}</div><details><summary>عرض النص</summary><p>${esc(t).replace(/\n/g,'<br>')}</p>${s.voice?`<p dir="rtl" style="text-align:right">${esc(s.voice)}</p>`:''}</details></div>`}).join('')}</div>`;
 }
 const opt=(k,a)=>a.map(([v,t])=>`<option value="${v}"${String(S[k])===String(v)?' selected':''}>${t}</option>`).join('');
 function renderSet(){
@@ -483,7 +484,7 @@ $('upf').onchange=async e=>{
    for(let i=0;i<Math.min(fs.length,sc.length);i++)await saveRec(rkey(sc[i].n),fs[i]);
    say(fs.length===sc.length?`رُفعت ${fs.length} مقاطع بترتيب أسمائها. تحقق من الترتيب.`:`رُفع ${Math.min(fs.length,sc.length)} من ${sc.length} مقطعاً. تحقق من الترتيب.`,'ok')}
   else await saveRec(rkey(upT),fs[0]);
-  if(pendingFrame){const n=pendingFrame;pendingFrame=null;await lastFrame(await getRec(n),n)}else if(cur==='mg')renderMg();
+  if(pendingFrame){const n=pendingFrame;pendingFrame=null;await lastFrame(await getRec(n),n)}else if(cur==='mg')renderMg();else if(cur==='ep'){await renderEp();if(upT!=='bulk')say('رُفع المقطع '+upT+' ✓','ok')}
  }catch(err){say('تعذّر حفظ الملف: '+err.message,'err')}
 };
 async function clearRec(n){await idb.del(rkey(n));if(P.legacy)await idb.del(lkey(n));renderMg()}
@@ -519,7 +520,8 @@ async function renderMg(){
  <div class="card"><h2>المقاطع (${n} من ${sc.length})</h2>
  <label>ترتيب الرفع الجماعي</label><select data-set="bulkOrder">${opt('bulkOrder',[['pick','حسب ترتيب تحديدي للملفات'],['name','باسم الملف'],['last','بآخر رقم في الاسم'],['time','بتاريخ الملف (الأقدم أولاً)']])}</select>
  <button class="alt" data-act="pick" data-n="bulk" style="width:100%;margin-top:8px">رفع كل المقاطع دفعة واحدة (بترتيب أسمائها)</button>
- ${sc.map((x,i)=>`<div class="slot"><b>${x.n}</b>${fmt(R[i])}<button data-act="pick" data-n="${x.n}">رفع</button><button class="alt" data-act="clr" data-n="${x.n}">✕</button></div>`).join('')}
+ ${sc.map((x,i)=>`<div class="slot"><b>${x.n}</b>${fmt(R[i])}<button class="alt" data-act="clr" data-n="${x.n}">✕</button></div>`).join('')}
+ <p class="mut small">المقاطع التي رفعتها من شاشة الحلقة تظهر هنا. ارفع الباقي دفعة واحدة بالزر أعلاه، أو ارجع للحلقة لرفع مقطع بعينه.</p>
  ${missing.length?`<p class="mut small">⚠ ناقص: ${missing.join('، ')}. سيُدمج ما رُفع فقط.</p>`:''}${bad.length?`<p class="mut small">⚠ أبعاد المقاطع ${bad.join('، ')} تخالف أبعاد أول مقطع، وستُضاف أشرطة سوداء.</p>`:''}</div>
  <div class="card"><button data-act="merge" style="width:100%" ${n?'':'disabled'}>ادمج الحلقة</button><div class="prog"><i id="pg"></i></div><div id="mgOut"></div></div>`;
 }
