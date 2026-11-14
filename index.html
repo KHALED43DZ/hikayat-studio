@@ -103,12 +103,12 @@ video,.mgimg{width:100%;border-radius:8px;margin-top:8px}
 <div id="status"></div><div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION='1.9.1'; /* غيّره عند كل تحديث */
+const APP_VERSION='1.9.3'; /* غيّره عند كل تحديث */
 const $=id=>document.getElementById(id);
 $('ver').textContent='v'+APP_VERSION;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const store={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
-let S=Object.assign({keys:'',model:'gemini-3.8-flash',modelCustom:'',fallback:'gemini-3.5-flash-lite',fbCustom:'',think:'low',placeImg:'off',mergeH:720,introSecs:4,outroSecs:4,teaser:'on',bulkOrder:'pick',contMode:'frame',musicVol:25,musicOn:'on',darija:'full',dialogue:'clip',scenes:12,secs:10},store.get('settings',{}));
+let S=Object.assign({keys:'',model:'gemini-3.8-flash',modelCustom:'',fallback:'gemini-3.5-flash-lite',fbCustom:'',think:'low',placeImg:'off',mergeH:720,introSecs:4,outroSecs:4,teaser:'on',bulkOrder:'pick',contMode:'frame',autoDl:'on',musicVol:25,musicOn:'on',darija:'full',dialogue:'clip',scenes:12,secs:10},store.get('settings',{}));
 const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 let P=null,cool=store.get('cool2',{}),cur='home',prev='home',curEp=null,busyF=false,rot=0;
 const save=()=>{if(!P)return;if(!P.id)P.id=newId();store.set('proj:'+P.id,P);store.set('cur',P.id);const ix=store.get('idx',[]);if(!ix.includes(P.id)){ix.push(P.id);store.set('idx',ix)}};
@@ -353,6 +353,7 @@ function renderSet(){
  <label>الحوار</label><select data-set="dialogue">${opt('dialogue',[['clip','ينطقه نموذج الفيديو داخل المقطع'],['voice','تعليق صوتي يُضاف لاحقاً']])}</select>
  
  <label>صورة الأماكن المرجعية</label><select data-set="placeImg">${opt('placeImg',[['off','بلا (الوصف الثابت نصاً فقط)'],['on','أريد صورة أماكن مرجعية']])}</select>
+ <label>التنزيل التلقائي (آخر إطار والحلقة المدموجة)</label><select data-set="autoDl">${opt('autoDl',[['on','تلقائي فور الجاهزية'],['off','بزر التنزيل فقط']])}</select>
  <label>متابعة المقاطع المتصلة في أداة الفيديو</label><select data-set="contMode">${opt('contMode',[['frame','برفع صورة آخر إطار كبداية'],['extend','بزر تمديد الفيديو السابق']])}</select>
  <label>دقة الفيديو النهائي (الضلع الأقصر)</label><select data-set="mergeH">${opt('mergeH',[[480,'480 (أخف وأسرع)'],[720,'720 (موصى به)'],[1080,'1080 (ثقيل على الهاتف)']])}</select>
  <label>عدد المشاهد</label><input data-set="scenes" type="number" min="4" max="20" value="${S.scenes}">
@@ -419,6 +420,9 @@ async function delProject(id){
  show('home');
 }
 
+/* ---------- تنزيل تلقائي ---------- */
+function autoDl(url,name){if(S.autoDl==='off')return false;try{const a=document.createElement('a');a.href=url;a.download=name;a.style.display='none';document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),1500);return true}catch{return false}}
+
 /* ---------- آخر إطار للمقاطع المتصلة ---------- */
 async function frameBtn(n){
  const r=await getRec(n);if(r)return lastFrame(r,n);
@@ -434,8 +438,9 @@ async function lastFrame(r,n){
   const blob=await new Promise(res=>c.toBlob(res,'image/png'));URL.revokeObjectURL(u);
   const f=new File([blob],`last-frame-ep${curEp}-clip${n}.png`,{type:'image/png'}),url=URL.createObjectURL(f);lastFrameFile=f;
   if(cur!=='ep')show('ep');const box=$('frameBox');
-  if(box)box.innerHTML=`<p class="small">آخر إطار من المقطع ${n}:</p><img class="mgimg" src="${url}"><div class="row" style="margin-top:8px"><a href="${url}" download="${f.name}" style="text-decoration:none"><button style="width:100%">تنزيل الصورة</button></a><button class="alt" data-act="shareFrame">مشاركة</button></div>`;
-  say('تم. استخدم الصورة كبداية للمقطع التالي في أداة الفيديو.','ok');
+  const ok=autoDl(url,f.name);
+  if(box)box.innerHTML=ok?'':`<div class="row" style="margin-bottom:8px"><a href="${url}" download="${f.name}" style="text-decoration:none"><button style="width:100%">تنزيل آخر إطار</button></a><button class="alt" data-act="shareFrame">مشاركة</button></div>`;
+  say(ok?'تم تنزيل آخر إطار تلقائياً. استخدمه كبداية للمقطع التالي في أداة الفيديو.':'تم. نزّل الصورة بالزر أعلاه واستخدمها كبداية للمقطع التالي.','ok');
  }catch(e){say(e.message,'err')}
 }
 async function shareFrame(){if(!lastFrameFile)return;try{await navigator.share({files:[lastFrameFile]})}catch{say('المشاركة غير متاحة هنا، استخدم زر التنزيل.','err')}}
@@ -628,7 +633,7 @@ async function doMerge(){
   const name=`${P.bible.title}-الحلقة-${curEp}.mp4`;
   lastFile=new File([data],name,{type:'video/mp4'});const u=URL.createObjectURL(lastFile);
   bar(1);$('mgOut').innerHTML=`<video controls playsinline src="${u}"></video><div class="row" style="margin-top:10px"><a href="${u}" download="${esc(name)}" style="text-decoration:none"><button style="width:100%">تنزيل الحلقة</button></a><button class="alt" data-act="share">مشاركة</button></div>`;
-  say(`تم دمج الحلقة (${(lastFile.size/1048576).toFixed(1)} MB)`,'ok');
+  say(`تم دمج الحلقة (${(lastFile.size/1048576).toFixed(1)} MB)${autoDl(u,name)?' ونُزّلت تلقائياً.':''}`,'ok');
  }catch(e){say(e.message,'err')}
  lock(false);
 }
