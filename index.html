@@ -59,6 +59,14 @@ details p,.en{margin:6px 0;line-height:1.7;direction:ltr;text-align:left}
 .prog{height:10px;background:var(--line);border-radius:999px;overflow:hidden;margin:10px 0}.prog i{display:block;height:100%;width:0;background:var(--g2);transition:width .3s}
 audio{width:100%;margin-top:8px}
 video,.mgimg{width:100%;border-radius:8px;margin-top:8px}
+.scene{position:relative}
+.ref{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.chip.ct{background:var(--mut)}
+.gtag{font-size:12px;font-weight:800;margin-top:12px}
+.scene.ch::before{content:'';position:absolute;right:-11px;top:0;bottom:0;width:4px;background:var(--c);border-radius:2px}
+.scene.ch.first::before{top:50%}.scene.ch.last::before{bottom:50%}
+.scene.ch .num{color:var(--c)}
+.lnk{padding:4px 10px;min-height:32px;font-size:12px;background:transparent;border:1px solid var(--line);color:var(--mut)}
 .hide{display:none}
 </style>
 </head>
@@ -95,12 +103,12 @@ video,.mgimg{width:100%;border-radius:8px;margin-top:8px}
 <div id="status"></div><div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION='1.8.0'; /* غيّره عند كل تحديث */
+const APP_VERSION='1.9.0'; /* غيّره عند كل تحديث */
 const $=id=>document.getElementById(id);
 $('ver').textContent='v'+APP_VERSION;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const store={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
-let S=Object.assign({keys:'',model:'gemini-3.8-flash',modelCustom:'',fallback:'gemini-3.5-flash-lite',fbCustom:'',think:'low',placeImg:'off',mergeH:720,introSecs:4,outroSecs:4,teaser:'on',bulkOrder:'pick',musicVol:25,musicOn:'on',darija:'full',dialogue:'clip',scenes:12,secs:10},store.get('settings',{}));
+let S=Object.assign({keys:'',model:'gemini-3.8-flash',modelCustom:'',fallback:'gemini-3.5-flash-lite',fbCustom:'',think:'low',placeImg:'off',mergeH:720,introSecs:4,outroSecs:4,teaser:'on',bulkOrder:'pick',contMode:'frame',musicVol:25,musicOn:'on',darija:'full',dialogue:'clip',scenes:12,secs:10},store.get('settings',{}));
 const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 let P=null,cool=store.get('cool2',{}),cur='home',prev='home',curEp=null,busyF=false,rot=0;
 const save=()=>{if(!P)return;if(!P.id)P.id=newId();store.set('proj:'+P.id,P);store.set('cur',P.id);const ix=store.get('idx',[]);if(!ix.includes(P.id)){ix.push(P.id);store.set('idx',ix)}};
@@ -211,11 +219,12 @@ const epSys=()=>`أنت مخرج فيديو. حوّل ملخص الحلقة إل
 - wardrobe: لكل شخصية تظهر في الحلقة (name حرفياً) outfit إنجليزي كامل بألوان محددة يناسب زمن القصة، ويبقى ثابتاً طوال الحلقة.
 - لكل مشهد: place (اسم المكان حرفياً من الدليل)، shot (size حجم اللقطة، angle الزاوية، move حركة الكاميرا)، cast (لكل شخصية ظاهرة: name حرفياً، pos موضعها الدقيق نسبة إلى الكادر وعناصر المكان مثل "left third of the frame, beside the stone well"، pose وقوف أو جلوس أو انحناء بتفاصيله، facing اتجاه الوجه والجسد نسبة للكاميرا مثل "three-quarter left" أو "profile right" أو "back to camera"، action حركتها خلال ${S.secs} ثوانٍ)، objects (أسماء العناصر الثانوية الظاهرة)، action (الحدث بالإنجليزية في جملتين)، dialogue، end (إنجليزي قصير: أين تنتهي كل شخصية).
 - نوّع اللقطات: لا يتكرر حجم اللقطة والزاوية معاً في مشهدين متتاليين داخل المكان نفسه (وسّع، قرّب، بدّل الزاوية، لقطة من فوق كتف شخصية، لقطة جانبية...). ويبدأ كل مشهد من مواضع نهاية المشهد السابق إلا إذا تغيّر المكان أو مرّ وقت.
+- cont: true إن كان المقطع تكملة مباشرة للمقطع السابق (المكان واللحظة نفسهما بلا قفزة زمنية). وزّع الأحداث الطويلة على عدة مقاطع متتالية متصلة بدل ضغطها في مقطع واحد، وتابع الحدث (بداية ثم وسط ثم نهاية) دون تكراره. المقطع المتصل يبدأ من إطار نهاية السابق نفسه (نفس حجم اللقطة والزاوية والمواضع عند بدايته) ثم تتحرك الكاميرا والشخصيات. وفي غير المتصل يبقى تنويع اللقطات.
 - ${S.dialogue==='clip'?'dialogue: حوار منطوق قصير بالدارجة بين علامتي تنصيص مع اسم المتكلم يناسب المدة.':'dialogue فارغ، وتعليق صوتي قصير بالدارجة في الحقل voice.'} الدارجة ${S.darija==='full'?'الجزائرية كاملة':'قريبة من الفصحى'} بالحروف العربية.
 - لا تُظهر أي كتابة في الفيديو إطلاقاً: لا ترجمات ولا عناوين ولا لافتات ولا أسماء ولا أحرف مكتوبة.
 - التكوين مناسب لكادر ${P?.form?.ratio||'16:9'}. أول مشهد يجذب الانتباه، وآخره يمهد للحلقة التالية (أو يختم المسلسل إن كانت الأخيرة).
 ${SAFE}
-{"title":"","wardrobe":[{"name":"","outfit":""}],"scenes":[{"n":1,"summary":"سطر عربي","place":"","shot":{"size":"","angle":"","move":""},"cast":[{"name":"","pos":"","pose":"","facing":"","action":""}],"objects":[""],"action":"","dialogue":"","voice":"","end":""}]}`;
+{"title":"","wardrobe":[{"name":"","outfit":""}],"scenes":[{"n":1,"summary":"سطر عربي","place":"","cont":false,"shot":{"size":"","angle":"","move":""},"cast":[{"name":"","pos":"","pose":"","facing":"","action":""}],"objects":[""],"action":"","dialogue":"","voice":"","end":""}]}`;
 
 /* ---------- إنشاء الدليل والحلقات ---------- */
 async function makeBible(f){const isNew=!f;
@@ -237,7 +246,7 @@ async function makeEp(n){
  lock(true);
  try{
   const r=parse(await gem(epSys(),`الدليل:\n${JSON.stringify({characters:[...(b.main||[]),...(b.secondary||[])].map(c=>({name:c.name,type:c.type||'character',look:look(c)})),places:(b.places||[]).map(x=>({name:x.name,layout:last(x.pv||[x.prompt])}))})}\n\nالحلقات السابقة:\n${prevS}\n\nالحلقة المطلوبة:\n${JSON.stringify(ep)}`));
-  if(!Array.isArray(r.scenes)||!r.scenes.length||!Array.isArray(r.scenes[0].cast))throw new Error('لم يُرجع Gemini مشاهد مكتملة. أعد المحاولة.');r.wardrobe=Object.fromEntries((r.wardrobe||[]).map(w=>[w.name,w.outfit]));
+  if(!Array.isArray(r.scenes)||!r.scenes.length||!Array.isArray(r.scenes[0].cast))throw new Error('لم يُرجع Gemini مشاهد مكتملة. أعد المحاولة.');r.scenes.forEach((x,i)=>{x.cont=i>0&&x.cont===true});r.wardrobe=Object.fromEntries((r.wardrobe||[]).map(w=>[w.name,w.outfit]));
   P.eps[n]=r;Object.keys(P.copied).filter(k=>k.startsWith(n+':')).forEach(k=>delete P.copied[k]);
   save();curEp=n;show('ep');say(`تم: ${r.scenes.length} مشهداً`,'ok');
  }catch(e){say(e.message,'err')}
@@ -294,10 +303,12 @@ const headsPrompt=(g,b)=>{const n=g.length,lay=n<=3?`row of ${n} card${n>1?'s':'
  return `Ultra-high-resolution 4K character head reference sheet on a pure white background, horizontal 16:9 canvas. A ${lay}, ${n} card${n>1?'s':''} in total, separated by thin straight divider lines. Each card shows ONE character's head and neck only (no body, no clothing): a front-view portrait and a side-profile portrait side by side, neutral calm expression, plain white backdrop. Below each card, the character's name in clean readable Arabic text: ${g.map((c,i)=>`${i+1}) "${c.name}"`).join(', ')}. Same art style (${b.style_guide||'consistent style'}), maximum detail and sharpness. `+g.map((c,i)=>`Card ${i+1} (${c.name}): ${c.face||c.desc}.`).join(' ')};
 const NOTEXT=' Do not show any text, subtitles, captions, watermarks, signs or written letters anywhere in the video, and do not show the name captions from the reference images.';
 function clipText(s,ep){
- const v=last(vers(s,'vv')),B=P.bible;
- if(typeof v==='string')return pre()+'Use the attached reference images to keep characters and places consistent. '+v+NOTEXT;
+ const v=last(vers(s,'vv')),B=P.bible,ix=ep.scenes.indexOf(s),pv=ix>0?ep.scenes[ix-1]:null,pL=pv?last(vers(pv,'vv')):null,pe=pL&&typeof pL==='object'?pL.end:'';
+ const cl=s.cont&&pv?(S.contMode==='extend'?'This shot is a direct continuation (extension) of the previous clip: continue seamlessly from its final moment, same place, same character positions and lighting, with no time jump.':'This shot continues directly from the previous clip: it starts exactly from the attached last-frame image of the previous clip (same place, same character positions, same lighting), with no time jump.')+(pe?' Positions at the end of the previous clip: '+pe+'.':''):'';
+ if(typeof v==='string')return pre()+'Use the attached reference images to keep characters and places consistent. '+cl+' '+v+NOTEXT;
  const pl=(B.places||[]).find(p=>p.name===s.place),w=ep.wardrobe||{},cd=n=>charList(B).find(c=>c.name===n);
  return [pre()+'Use the attached character head reference sheet (front and side portraits) only for faces and identity; clothing, setting and positions are specified below.',
+  cl,
   'Camera: '+[v.shot?.size,v.shot?.angle,v.shot?.move].filter(Boolean).join(', ')+'.',
   s.place?`Setting "${s.place}": ${pl?last(pl.pv||[pl.prompt]):''}${S.placeImg==='on'?' (matches the attached reference image of this place)':''}`:'',
   'Characters:\n'+(v.cast||[]).map(c=>`- "${c.name}": ${look(cd(c.name))}.${w[c.name]?' Wearing: '+w[c.name]+'.':''} Position: ${c.pos||''}. ${c.pose||''}, facing ${c.facing||''}. ${c.action||''}`).join('\n'),
@@ -315,12 +326,15 @@ function renderSeries(){
  <div class="card"><h2>الأوصاف الثابتة</h2>${charList(b).map(c=>`<details style="display:block"><summary>${esc(c.name)}</summary><p>${esc(look(c))}</p></details>`).join('')}${(b.places||[]).map(p=>`<details style="display:block"><summary>📍 ${esc(p.name)}</summary><p>${esc(last(p.pv||[p.prompt]))}</p></details>`).join('')}</div>
  <div class="card"><h2>الحلقات</h2>${b.episodes.map(e=>`<div class="ep"><b>${e.n}. ${esc(e.title)}</b> <span class="mut small">${esc(e.value||'')}</span><textarea data-sum="${e.n}" rows="3">${esc(e.summary)}</textarea><div class="row"><button data-act="gen" data-n="${e.n}">${P.eps[e.n]?'افتح الحلقة':'ولّد الحلقة'}</button>${P.eps[e.n]?`<button class="alt" data-act="regen" data-n="${e.n}">أعد التوليد</button>`:''}</div></div>`).join('')}</div>`;
 }
+const chains=sc=>{const g=[];let c=null;sc.forEach((s,i)=>{if(i>0&&s.cont&&c){c.e=s.n;c.items.push(s.n)}else{c={s:s.n,e:s.n,items:[s.n]};g.push(c)}});return g.filter(x=>x.items.length>1)};
 function renderEp(){
- const ep=P.eps[curEp],w=ep.wardrobe||{},names=Object.keys(w);
- $('v-ep').innerHTML=`<div class="card"><div class="row"><button class="alt" data-act="back">‹ الحلقات</button><button data-act="mg">رفع المقاطع ودمجها ›</button></div><h2 style="margin-top:12px">الحلقة ${curEp}: ${esc(ep.title)}</h2>${names.length?`<details style="display:block"><summary>لباس الحلقة (تعديله يحدّث كل المقاطع)</summary>${names.map(n=>`<label>${esc(n)}</label><input data-ward="${esc(n)}" value="${esc(w[n])}" dir="ltr">`).join('')}</details>`:''}${ep.scenes.map(s=>{
-  const a=vers(s,'vv'),v=a.length-1,L=a[v],t=clipText(s,ep),nm=typeof L==='object'?(L.cast||[]).map(c=>c.name):(s.main||[]);
-  const info=(s.place?`<span class="chip pl">المكان: ${esc(s.place)}</span>`:'')+nm.filter(Boolean).map(c=>`<span class="chip sc">${esc(c)}</span>`).join('');
-  return `<div class="scene"><div class="num">${s.n}</div>${pb(curEp+':v'+s.n+':'+v+':'+JSON.stringify(w).length,t,'مقطع '+v,'vv',s.n)}${info?`<div class="ref">${info}</div>`:''}<div class="sum">${esc(s.summary)}</div><details><summary>عرض النص</summary><p>${esc(t).replace(/\n/g,'<br>')}</p>${s.voice?`<p dir="rtl" style="text-align:right">${esc(s.voice)}</p>`:''}</details></div>`}).join('')}</div>`;
+ const ep=P.eps[curEp],w=ep.wardrobe||{},names=Object.keys(w),sc=ep.scenes,COL=['#c0392b','#2e86de','#d68910','#8e44ad'],info={};
+ chains(sc).forEach((g,gi)=>g.items.forEach((n,k)=>{info[n]={c:COL[gi%4],pos:k===0?'first':k===g.items.length-1?'last':'mid',tag:k===0?`مشهد متصل ${g.s}–${g.e}`:''}}));
+ $('v-ep').innerHTML=`<div class="card"><div class="row"><button class="alt" data-act="back">‹ الحلقات</button><button data-act="mg">رفع المقاطع ودمجها ›</button></div><h2 style="margin-top:12px">الحلقة ${curEp}: ${esc(ep.title)}</h2><div id="frameBox"></div>${names.length?`<details style="display:block"><summary>لباس الحلقة (تعديله يحدّث كل المقاطع)</summary>${names.map(n=>`<label>${esc(n)}</label><input data-ward="${esc(n)}" value="${esc(w[n])}" dir="ltr">`).join('')}</details>`:''}${sc.map((s,i)=>{
+  const a=vers(s,'vv'),v=a.length-1,L=a[v],t=clipText(s,ep),nm=typeof L==='object'?(L.cast||[]).map(c=>c.name):(s.main||[]),ci=info[s.n];
+  const chips=(s.place?`<span class="chip pl">المكان: ${esc(s.place)}</span>`:'')+nm.filter(Boolean).map(c=>`<span class="chip sc">${esc(c)}</span>`).join('')+(s.cont&&i>0?'<span class="chip ct">↳ يكمل السابق</span>':'');
+  const act=(i>0?`<button class="lnk" data-act="lnk" data-n="${s.n}">${s.cont?'🔗 فكّ الربط':'🔗 اربط بالسابق'}</button>`:'')+(s.cont&&i>0&&S.contMode==='frame'?`<button class="lnk" data-act="fr" data-n="${sc[i-1].n}">🖼 آخر إطار للمقطع السابق</button>`:'');
+  return `${ci&&ci.tag?`<div class="gtag" style="color:${ci.c}">${ci.tag}</div>`:''}<div class="scene${ci?' ch '+ci.pos:''}"${ci?` style="--c:${ci.c}"`:''}><div class="num">${s.n}</div>${pb(curEp+':v'+s.n+':'+v+':'+JSON.stringify(w).length+':'+(s.cont?1:0),t,'مقطع '+v,'vv',s.n)}<div class="ref">${chips}${act}</div><div class="sum">${esc(s.summary)}</div><details><summary>عرض النص</summary><p>${esc(t).replace(/\n/g,'<br>')}</p>${s.voice?`<p dir="rtl" style="text-align:right">${esc(s.voice)}</p>`:''}</details></div>`}).join('')}</div>`;
 }
 const opt=(k,a)=>a.map(([v,t])=>`<option value="${v}"${String(S[k])===String(v)?' selected':''}>${t}</option>`).join('');
 function renderSet(){
@@ -338,6 +352,7 @@ function renderSet(){
  <label>الحوار</label><select data-set="dialogue">${opt('dialogue',[['clip','ينطقه نموذج الفيديو داخل المقطع'],['voice','تعليق صوتي يُضاف لاحقاً']])}</select>
  
  <label>صورة الأماكن المرجعية</label><select data-set="placeImg">${opt('placeImg',[['off','بلا (الوصف الثابت نصاً فقط)'],['on','أريد صورة أماكن مرجعية']])}</select>
+ <label>متابعة المقاطع المتصلة في أداة الفيديو</label><select data-set="contMode">${opt('contMode',[['frame','برفع صورة آخر إطار كبداية'],['extend','بزر تمديد الفيديو السابق']])}</select>
  <label>دقة الفيديو النهائي (الضلع الأقصر)</label><select data-set="mergeH">${opt('mergeH',[[480,'480 (أخف وأسرع)'],[720,'720 (موصى به)'],[1080,'1080 (ثقيل على الهاتف)']])}</select>
  <label>عدد المشاهد</label><input data-set="scenes" type="number" min="4" max="20" value="${S.scenes}">
  <label>مدة المقطع بالثواني</label><input data-set="secs" type="number" min="4" max="12" value="${S.secs}"></div>
@@ -362,7 +377,7 @@ document.addEventListener('click',e=>{
  const b=e.target.closest('[data-act]');if(!b||busyF)return;
  const n=+b.dataset.n,A={mk:()=>makeBible(),newb:()=>makeBible(P.form),new:()=>show('home'),
   gen:()=>{if(P.eps[n]){curEp=n;show('ep')}else makeEp(n)},regen:()=>makeEp(n),back:()=>show('series'),back2:()=>show(prev),
-  imp:()=>$('impf').click(),rg:()=>regen(b),music:makeMusic,mg:()=>show('mg'),back3:()=>show('ep'),cards:makeCards,merge:doMerge,prevc:previewCards,share:shareOut,clr:()=>clearRec(b.dataset.n),pick:()=>{upT=b.dataset.n;const u=$('upf');u.multiple=upT==='bulk';u.accept=(upT==='intro'||upT==='outro')?'image/*,video/*':upT==='music'?'audio/*':'video/*';u.click()},models:listModels,wipe:()=>{if(P&&confirm('حذف المشروع الحالي؟'))delProject(P.id)},open:()=>openProject(b.dataset.n),delp:()=>{if(confirm('حذف هذا المشروع وكل ملفاته؟'))delProject(b.dataset.n)},
+  imp:()=>$('impf').click(),rg:()=>regen(b),lnk:()=>{const x=P.eps[curEp].scenes.find(y=>y.n==b.dataset.n);x.cont=!x.cont;save();renderEp()},fr:()=>frameBtn(b.dataset.n),shareFrame:shareFrame,music:makeMusic,mg:()=>show('mg'),back3:()=>show('ep'),cards:makeCards,merge:doMerge,prevc:previewCards,share:shareOut,clr:()=>clearRec(b.dataset.n),pick:()=>{pendingFrame=null;upT=b.dataset.n;const u=$('upf');u.multiple=upT==='bulk';u.accept=(upT==='intro'||upT==='outro')?'image/*,video/*':upT==='music'?'audio/*':'video/*';u.click()},models:listModels,wipe:()=>{if(P&&confirm('حذف المشروع الحالي؟'))delProject(P.id)},open:()=>openProject(b.dataset.n),delp:()=>{if(confirm('حذف هذا المشروع وكل ملفاته؟'))delProject(b.dataset.n)},
   exp:()=>{if(!P)return say('لا يوجد مشروع.','err');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(P,null,1)],{type:'application/json'}));a.download=(P.bible.title||'project')+'.json';a.click()}};
  A[b.dataset.act]?.();
 });
@@ -403,6 +418,27 @@ async function delProject(id){
  show('home');
 }
 
+/* ---------- آخر إطار للمقاطع المتصلة ---------- */
+async function frameBtn(n){
+ const r=await getRec(n);if(r)return lastFrame(r,n);
+ pendingFrame=n;upT=n;const u=$('upf');u.multiple=false;u.accept='video/*';say('ارفع المقطع '+n+' لأستخرج منه آخر إطار (ويُحفظ أيضاً للدمج).','ok');u.click();
+}
+async function lastFrame(r,n){
+ say('جارٍ استخراج آخر إطار...','busy');
+ try{
+  const u=URL.createObjectURL(r.blob),v=document.createElement('video');v.muted=true;v.playsInline=true;v.preload='auto';v.src=u;
+  await new Promise((res,rej)=>{v.onloadedmetadata=res;v.onerror=()=>rej(new Error('تعذّر قراءة المقطع'))});
+  await new Promise(res=>{v.onseeked=res;setTimeout(res,8000);v.currentTime=Math.max(0,(v.duration||1)-0.1)});
+  const c=document.createElement('canvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);
+  const blob=await new Promise(res=>c.toBlob(res,'image/png'));URL.revokeObjectURL(u);
+  const f=new File([blob],`last-frame-ep${curEp}-clip${n}.png`,{type:'image/png'}),url=URL.createObjectURL(f);lastFrameFile=f;
+  if(cur!=='ep')show('ep');const box=$('frameBox');
+  if(box)box.innerHTML=`<p class="small">آخر إطار من المقطع ${n}:</p><img class="mgimg" src="${url}"><div class="row" style="margin-top:8px"><a href="${url}" download="${f.name}" style="text-decoration:none"><button style="width:100%">تنزيل الصورة</button></a><button class="alt" data-act="shareFrame">مشاركة</button></div>`;
+  say('تم. استخدم الصورة كبداية للمقطع التالي في أداة الفيديو.','ok');
+ }catch(e){say(e.message,'err')}
+}
+async function shareFrame(){if(!lastFrameFile)return;try{await navigator.share({files:[lastFrameFile]})}catch{say('المشاركة غير متاحة هنا، استخدم زر التنزيل.','err')}}
+
 /* ---------- المقدمة والخاتمة ---------- */
 const cardText=k=>pre()+'Use the attached character head reference sheet (front and side portraits) only for faces and identity. '+last(P.bible.cards[k])+' Leave the top third of the frame as calm empty space. Do not show any text, letters or captions in the image.';
 const cardBtn=(k,label)=>{const v=P.bible.cards[k].length-1,id=`cd:${k}:${v}`,t=cardText(k);return `<div class="pb" style="margin-bottom:8px"><button class="${cp(id)}" data-id="${id}" data-text="${esc(t)}">${RISK.test(t)?'⚠ ':''}${label}${v?' · '+v:''}</button>${sq('cd','',k)}</div>`};
@@ -439,7 +475,7 @@ const rkey=n=>['intro','outro','music'].includes(n)?`${n}:${P.id}`:`clip:${P.id}
 const lkey=n=>['intro','outro','music'].includes(n)?n:`clip:${curEp}:${n}`;
 const getRec=async n=>{let r=await idb.get(rkey(n));if(!r&&P.legacy)r=await idb.get(lkey(n));return r};
 const saveRec=async(k,f)=>{const m=await meta(f);await idb.put(k,{blob:f,name:f.name,size:f.size,type:f.type,...m})};
-let upT=null,onProg=()=>{},logBuf=[],FF=null,lastFile=null;
+let pendingFrame=null,lastFrameFile=null,upT=null,onProg=()=>{},logBuf=[],FF=null,lastFile=null;
 $('upf').onchange=async e=>{
  const fs=[...e.target.files];e.target.value='';if(!fs.length)return;
  try{
@@ -447,7 +483,7 @@ $('upf').onchange=async e=>{
    for(let i=0;i<Math.min(fs.length,sc.length);i++)await saveRec(rkey(sc[i].n),fs[i]);
    say(fs.length===sc.length?`رُفعت ${fs.length} مقاطع بترتيب أسمائها. تحقق من الترتيب.`:`رُفع ${Math.min(fs.length,sc.length)} من ${sc.length} مقطعاً. تحقق من الترتيب.`,'ok')}
   else await saveRec(rkey(upT),fs[0]);
-  renderMg();
+  if(pendingFrame){const n=pendingFrame;pendingFrame=null;await lastFrame(await getRec(n),n)}else if(cur==='mg')renderMg();
  }catch(err){say('تعذّر حفظ الملف: '+err.message,'err')}
 };
 async function clearRec(n){await idb.del(rkey(n));if(P.legacy)await idb.del(lkey(n));renderMg()}
