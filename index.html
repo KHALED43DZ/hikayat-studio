@@ -67,6 +67,7 @@ video,.mgimg{width:100%;border-radius:8px;margin-top:8px}
 .scene.ch.first::before{top:50%}.scene.ch.last::before{bottom:50%}
 .scene.ch .num{color:var(--c)}
 .lnk{padding:4px 10px;min-height:32px;font-size:12px;background:transparent;border:1px solid var(--line);color:var(--mut)}
+.promo{white-space:pre-wrap;background:var(--bg);border-radius:8px;padding:10px;margin:6px 0;font-size:14px;line-height:1.8}
 .hide{display:none}
 </style>
 </head>
@@ -103,7 +104,7 @@ video,.mgimg{width:100%;border-radius:8px;margin-top:8px}
 <div id="status"></div><div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION='1.9.3'; /* غيّره عند كل تحديث */
+const APP_VERSION='1.10.0'; /* غيّره عند كل تحديث */
 const $=id=>document.getElementById(id);
 $('ver').textContent='v'+APP_VERSION;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -379,7 +380,7 @@ document.addEventListener('click',e=>{
  const b=e.target.closest('[data-act]');if(!b||busyF)return;
  const n=+b.dataset.n,A={mk:()=>makeBible(),newb:()=>makeBible(P.form),new:()=>show('home'),
   gen:()=>{if(P.eps[n]){curEp=n;show('ep')}else makeEp(n)},regen:()=>makeEp(n),back:()=>show('series'),back2:()=>show(prev),
-  imp:()=>$('impf').click(),rg:()=>regen(b),lnk:()=>{const x=P.eps[curEp].scenes.find(y=>y.n==b.dataset.n);x.cont=!x.cont;save();renderEp()},fr:()=>frameBtn(b.dataset.n),shareFrame:shareFrame,music:makeMusic,mg:()=>show('mg'),back3:()=>show('ep'),cards:makeCards,merge:doMerge,prevc:previewCards,share:shareOut,clr:()=>clearRec(b.dataset.n),pick:()=>{pendingFrame=null;upT=b.dataset.n;const u=$('upf');u.multiple=upT==='bulk';u.accept=(upT==='intro'||upT==='outro')?'image/*,video/*':upT==='music'?'audio/*':'video/*';u.click()},models:listModels,wipe:()=>{if(P&&confirm('حذف المشروع الحالي؟'))delProject(P.id)},open:()=>openProject(b.dataset.n),delp:()=>{if(confirm('حذف هذا المشروع وكل ملفاته؟'))delProject(b.dataset.n)},
+  imp:()=>$('impf').click(),rg:()=>regen(b),promo:()=>makePromo(false),lnk:()=>{const x=P.eps[curEp].scenes.find(y=>y.n==b.dataset.n);x.cont=!x.cont;save();renderEp()},fr:()=>frameBtn(b.dataset.n),shareFrame:shareFrame,music:makeMusic,mg:()=>show('mg'),back3:()=>show('ep'),cards:makeCards,merge:doMerge,prevc:previewCards,share:shareOut,clr:()=>clearRec(b.dataset.n),pick:()=>{pendingFrame=null;upT=b.dataset.n;const u=$('upf');u.multiple=upT==='bulk';u.accept=(upT==='intro'||upT==='outro')?'image/*,video/*':upT==='music'?'audio/*':'video/*';u.click()},models:listModels,wipe:()=>{if(P&&confirm('حذف المشروع الحالي؟'))delProject(P.id)},open:()=>openProject(b.dataset.n),delp:()=>{if(confirm('حذف هذا المشروع وكل ملفاته؟'))delProject(b.dataset.n)},
   exp:()=>{if(!P)return say('لا يوجد مشروع.','err');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(P,null,1)],{type:'application/json'}));a.download=(P.bible.title||'project')+'.json';a.click()}};
  A[b.dataset.act]?.();
 });
@@ -422,6 +423,36 @@ async function delProject(id){
 
 /* ---------- تنزيل تلقائي ---------- */
 function autoDl(url,name){if(S.autoDl==='off')return false;try{const a=document.createElement('a');a.href=url;a.download=name;a.style.display='none';document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),1500);return true}catch{return false}}
+
+/* ---------- الوصف الترويجي ---------- */
+const promoSys=()=>`أنت مسوّق محتوى لمسلسل حكايات جزائري قصير للأطفال والعائلة. اكتب الوصف الترويجي لحلقة واحدة لمنصتين. أخرج JSON فقط: {"tiktok":{"caption":"","hashtags":[""]},"shorts":{"title":"","description":"","hashtags":[""]}}
+- اللغة: عربية بسيطة بلمسة دارجة جزائرية خفيفة، دافئة ومشوّقة، بلا مبالغة ولا تضليل.
+- tiktok.caption: من سطر إلى ثلاثة أسطر، تبدأ بجملة جاذبة تثير الفضول دون كشف النهاية، مع 2 إلى 4 رموز تعبيرية مناسبة، وتنتهي بدعوة خفيفة للمتابعة أو لمشاهدة الحلقة القادمة (اذكر عنوانها إن وُجدت). لا تتجاوز 250 حرفاً.
+- shorts.title: حتى 70 حرفاً، جذاب، ويتضمن #Shorts.
+- shorts.description: من سطرين إلى ثلاثة تلخص الحلقة دون كشف نهايتها، وتذكر اسم المسلسل ورقم الحلقة، وتدعو للاشتراك.
+- hashtags: من 8 إلى 12 وسماً لكل منصة، مزيج عربي وإنجليزي مرتبط مباشرة بالمحتوى (مثل #الجزائر #حكايات_جزائرية #قصص_أطفال واسم المسلسل بلا فراغات)، بلا وسوم مضللة أو غير مرتبطة بالمحتوى. وفي shorts يتضمن #Shorts.
+- لا تنسب أحداثاً أو أقوالاً لأشخاص حقيقيين، ولا تدّعِ أن القصة وثائقية إن كانت خيالية، ولا تذكر أسماء فنانين أو علامات تجارية، وتجنّب الألفاظ العنيفة.`;
+const promoHtml=ep=>{
+ if(!ep.promo)return `<p class="mut small">يُكتب تلقائياً بعد كل دمج، أو ولّده الآن.</p><button data-act="promo" style="width:100%">ولّد الوصف الترويجي</button>`;
+ const q=(k,l)=>{const id=`pm:${curEp}:${k}`;return `<h2 style="font-size:14px;margin-top:12px">${l}</h2><p class="promo">${esc(ep.promo[k])}</p><button class="${cp(id)}" data-id="${id}" data-text="${esc(ep.promo[k])}" style="width:100%">نسخ</button>`};
+ return q('tt','وصف تيك توك')+q('st','عنوان Shorts')+q('sd','وصف Shorts')+`<button class="alt" data-act="promo" style="width:100%;margin-top:12px">أعد توليد الوصف</button>`};
+async function makePromo(auto){
+ const ep=P.eps[curEp],b=P.bible,nx=b.episodes.find(e=>e.n===curEp+1),me=b.episodes.find(e=>e.n===curEp)||{};
+ if(!auto)lock(true);
+ try{
+  if(auto)say('جارٍ كتابة الوصف الترويجي...','busy');
+  const r=parse(await gem(promoSys(),`المسلسل: ${b.title}\nالفكرة: ${b.logline}\nالفئة: ${P.form?.age||''} · ${P.form?.genre||''}\nالبيئة: ${P.form?.place||''}\nالحلقة ${curEp}: ${ep.title}\nملخص الحلقة: ${me.summary||''}\nالقيمة: ${me.value||''}\nالحلقة القادمة: ${nx?nx.title:'لا توجد (الحلقة الأخيرة)'}`));
+  const tag=a=>[...new Set((a||[]).map(x=>String(x).trim().replace(/\s+/g,'_')).filter(Boolean).map(x=>x.startsWith('#')?x:'#'+x))];
+  const tt=tag(r.tiktok?.hashtags),sh=tag(r.shorts?.hashtags);if(!sh.some(x=>x.toLowerCase()==='#shorts'))sh.push('#Shorts');
+  let title=String(r.shorts?.title||'').trim();if(title&&!/#shorts/i.test(title))title+=' #Shorts';
+  if(!r.tiktok?.caption||!title)throw new Error('رد غير مكتمل. أعد المحاولة.');
+  ep.promo={tt:String(r.tiktok.caption).trim()+'\n\n'+tt.join(' '),st:title,sd:String(r.shorts.description||'').trim()+'\n\n'+sh.join(' ')};
+  ['tt','st','sd'].forEach(k=>delete P.copied[`pm:${curEp}:${k}`]);save();
+  const box=$('promoBox');if(box)box.innerHTML=promoHtml(ep);
+  say(auto?'تم دمج الحلقة وكتابة الوصف الترويجي أسفل الفيديو.':'تم توليد الوصف الترويجي.','ok');
+ }catch(e){say((auto?'تم الدمج، لكن تعذّر توليد الوصف الترويجي: ':'')+e.message,'err')}
+ if(!auto)lock(false);
+}
 
 /* ---------- آخر إطار للمقاطع المتصلة ---------- */
 async function frameBtn(n){
@@ -528,7 +559,8 @@ async function renderMg(){
  ${sc.map((x,i)=>`<div class="slot"><b>${x.n}</b>${fmt(R[i])}<button class="alt" data-act="clr" data-n="${x.n}">✕</button></div>`).join('')}
  <p class="mut small">المقاطع التي رفعتها من شاشة الحلقة تظهر هنا. ارفع الباقي دفعة واحدة بالزر أعلاه، أو ارجع للحلقة لرفع مقطع بعينه.</p>
  ${missing.length?`<p class="mut small">⚠ ناقص: ${missing.join('، ')}. سيُدمج ما رُفع فقط.</p>`:''}${bad.length?`<p class="mut small">⚠ أبعاد المقاطع ${bad.join('، ')} تخالف أبعاد أول مقطع، وستُضاف أشرطة سوداء.</p>`:''}</div>
- <div class="card"><button data-act="merge" style="width:100%" ${n?'':'disabled'}>ادمج الحلقة</button><div class="prog"><i id="pg"></i></div><div id="mgOut"></div></div>`;
+ <div class="card"><button data-act="merge" style="width:100%" ${n?'':'disabled'}>ادمج الحلقة</button><div class="prog"><i id="pg"></i></div><div id="mgOut"></div></div>
+ <div class="card"><h2>الوصف الترويجي (تيك توك وShorts)</h2><div id="promoBox">${promoHtml(ep)}</div></div>`;
 }
 const bar=p=>{const e=$('pg');if(e)e.style.width=Math.round(p*100)+'%'};
 
@@ -634,6 +666,7 @@ async function doMerge(){
   lastFile=new File([data],name,{type:'video/mp4'});const u=URL.createObjectURL(lastFile);
   bar(1);$('mgOut').innerHTML=`<video controls playsinline src="${u}"></video><div class="row" style="margin-top:10px"><a href="${u}" download="${esc(name)}" style="text-decoration:none"><button style="width:100%">تنزيل الحلقة</button></a><button class="alt" data-act="share">مشاركة</button></div>`;
   say(`تم دمج الحلقة (${(lastFile.size/1048576).toFixed(1)} MB)${autoDl(u,name)?' ونُزّلت تلقائياً.':''}`,'ok');
+  if(!ep.promo)await makePromo(true);
  }catch(e){say(e.message,'err')}
  lock(false);
 }
