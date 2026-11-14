@@ -93,12 +93,12 @@ video,.mgimg{width:100%;border-radius:8px;margin-top:8px}
 <div id="status"></div><div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION='1.7.0'; /* غيّره عند كل تحديث */
+const APP_VERSION='1.7.1'; /* غيّره عند كل تحديث */
 const $=id=>document.getElementById(id);
 $('ver').textContent='v'+APP_VERSION;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const store={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
-let S=Object.assign({keys:'',model:'gemini-3.8-flash',modelCustom:'',fallback:'gemini-3.5-flash-lite',fbCustom:'',think:'low',placeImg:'off',mergeH:720,introSecs:4,outroSecs:4,teaser:'on',darija:'full',dialogue:'clip',scenes:12,secs:10},store.get('settings',{}));
+let S=Object.assign({keys:'',model:'gemini-3.8-flash',modelCustom:'',fallback:'gemini-3.5-flash-lite',fbCustom:'',think:'low',placeImg:'off',mergeH:720,introSecs:4,outroSecs:4,teaser:'on',bulkSort:'name',darija:'full',dialogue:'clip',scenes:12,secs:10},store.get('settings',{}));
 let P=store.get('project',null),cool=store.get('cool2',{}),cur='home',prev='home',curEp=null,busyF=false,rot=0;
 const save=()=>store.set('project',P);
 const norm=m=>(m||'').trim().toLowerCase().replace(/^models\//,'').replace(/\s+/g,'-');
@@ -399,7 +399,7 @@ let upT=null,onProg=()=>{},logBuf=[],FF=null,lastFile=null;
 $('upf').onchange=async e=>{
  const fs=[...e.target.files];e.target.value='';if(!fs.length)return;
  try{
-  if(upT==='bulk'){const sc=P.eps[curEp].scenes;fs.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
+  if(upT==='bulk'){const sc=P.eps[curEp].scenes;fs.sort(bulkCmp);
    for(let i=0;i<Math.min(fs.length,sc.length);i++)await saveRec(rkey(sc[i].n),fs[i]);
    say(fs.length===sc.length?`رُفعت ${fs.length} مقاطع بترتيب أسمائها. تحقق من الترتيب.`:`رُفع ${Math.min(fs.length,sc.length)} من ${sc.length} مقطعاً. تحقق من الترتيب.`,'ok')}
   else await saveRec(rkey(upT),fs[0]);
@@ -408,17 +408,20 @@ $('upf').onchange=async e=>{
 };
 async function clearRec(n){await idb.del(rkey(n));renderMg()}
 const dims=()=>{const q=+S.mergeH||720,e=x=>Math.round(x/2)*2,r=P?.form?.ratio||'16:9';return r==='9:16'?{w:q,h:e(q*16/9)}:r==='1:1'?{w:q,h:q}:{w:e(q*16/9),h:q}};
+const outDims=rs=>{const r=rs.find(x=>x&&x.w>0&&x.h>0&&!x.type.startsWith('image/'));if(!r)return dims();const q=+S.mergeH||720,e=x=>Math.max(2,Math.round(x/2)*2);return r.w>=r.h?{w:e(q*r.w/r.h),h:q}:{w:q,h:e(q*r.h/r.w)}};
+const lastNum=n=>{const m=n.replace(/\.[^.]+$/,'').match(/\d+/g);return m?+m[m.length-1]:0};
+const bulkCmp=(a,b)=>S.bulkSort==='last'?lastNum(a.name)-lastNum(b.name):S.bulkSort==='time'?a.lastModified-b.lastModified:a.name.localeCompare(b.name,undefined,{numeric:true});
 const fmt=r=>r?`<span class="ok">✓ ${esc(r.name)} · ${(r.size/1048576).toFixed(1)} MB${r.dur?' · '+r.dur.toFixed(1)+' ث':''}</span>`:'<span class="mut">لم يُرفع</span>';
 
 /* ---------- شاشة الرفع والدمج ---------- */
 async function renderMg(){
  const ep=P.eps[curEp],sc=ep.scenes,R=[];
  for(const x of sc)R.push(await idb.get(rkey(x.n)));
- const I=await idb.get('intro'),O=await idb.get('outro'),n=R.filter(Boolean).length,d=dims(),ar=d.w/d.h;
+ const I=await idb.get('intro'),O=await idb.get('outro'),n=R.filter(Boolean).length,d=outDims(R),ar=d.w/d.h;
  const bad=R.map((r,i)=>r&&r.w&&Math.abs(r.w/r.h-ar)>.05?sc[i].n:0).filter(Boolean);
  const missing=sc.filter((x,i)=>!R[i]).map(x=>x.n);
  $('v-mg').innerHTML=`<div class="card"><button class="alt" data-act="back3">‹ الحلقة</button><h2 style="margin-top:12px">رفع ودمج الحلقة ${curEp}: ${esc(ep.title)}</h2>
- <p class="mut small">الناتج ${d.w}×${d.h} (${esc(P.form?.ratio||'16:9')}). كل المعالجة داخل جهازك.</p></div>
+ <p class="mut small">الناتج ${d.w}×${d.h} (حسب أبعاد أول مقطع). كل المعالجة داخل جهازك.</p></div>
  <div class="card"><h2>المقدمة والخاتمة (مرة واحدة لكل الحلقات)</h2>
  <div class="slot"><b>▶</b>${fmt(I)}<button data-act="pick" data-n="intro">رفع</button><button class="alt" data-act="clr" data-n="intro">✕</button></div>
  <div class="slot"><b>■</b>${fmt(O)}<button data-act="pick" data-n="outro">رفع</button><button class="alt" data-act="clr" data-n="outro">✕</button></div>
@@ -428,9 +431,10 @@ async function renderMg(){
  <label>ذكر الحلقة القادمة في الخاتمة</label><select data-set="teaser">${opt('teaser',[['on','نعم'],['off','لا']])}</select>
  <button class="alt" data-act="prevc" style="width:100%;margin-top:10px">معاينة بطاقتي المقدمة والخاتمة</button></div>
  <div class="card"><h2>المقاطع (${n} من ${sc.length})</h2>
- <button class="alt" data-act="pick" data-n="bulk" style="width:100%">رفع كل المقاطع دفعة واحدة (بترتيب أسمائها)</button>
+ <label>ترتيب الرفع الجماعي</label><select data-set="bulkSort">${opt('bulkSort',[['name','باسم الملف'],['last','بآخر رقم في الاسم'],['time','بتاريخ الملف (الأقدم أولاً)']])}</select>
+ <button class="alt" data-act="pick" data-n="bulk" style="width:100%;margin-top:8px">رفع كل المقاطع دفعة واحدة (بترتيب أسمائها)</button>
  ${sc.map((x,i)=>`<div class="slot"><b>${x.n}</b>${fmt(R[i])}<button data-act="pick" data-n="${x.n}">رفع</button><button class="alt" data-act="clr" data-n="${x.n}">✕</button></div>`).join('')}
- ${missing.length?`<p class="mut small">⚠ ناقص: ${missing.join('، ')}. سيُدمج ما رُفع فقط.</p>`:''}${bad.length?`<p class="mut small">⚠ أبعاد المقاطع ${bad.join('، ')} تخالف أبعاد المشروع، وستُضاف أشرطة سوداء.</p>`:''}</div>
+ ${missing.length?`<p class="mut small">⚠ ناقص: ${missing.join('، ')}. سيُدمج ما رُفع فقط.</p>`:''}${bad.length?`<p class="mut small">⚠ أبعاد المقاطع ${bad.join('، ')} تخالف أبعاد أول مقطع، وستُضاف أشرطة سوداء.</p>`:''}</div>
  <div class="card"><button data-act="merge" style="width:100%" ${n?'':'disabled'}>ادمج الحلقة</button><div class="prog"><i id="pg"></i></div><div id="mgOut"></div></div>`;
 }
 const bar=p=>{const e=$('pg');if(e)e.style.width=Math.round(p*100)+'%'};
@@ -451,32 +455,51 @@ const cardLines=which=>{const nx=P.bible.episodes.find(e=>e.n===curEp+1),ep=P.ep
  if(which==='intro')return[{t:P.bible.title,k:.05},{t:'الحلقة '+curEp,k:.09},{t:ep.title,k:.06}];
  return S.teaser==='on'&&nx?[{t:'في الحلقة القادمة',k:.05},{t:nx.title,k:.08}]:[{t:P.bible.title,k:.07},{t:'شكراً لمشاهدتكم',k:.05}]};
 async function previewCards(){
- const {w,h}=dims(),out=[];
+ const rs=[];for(const x of P.eps[curEp].scenes)rs.push(await idb.get(rkey(x.n)));const {w,h}=outDims(rs),out=[];
  for(const k of ['intro','outro']){const r=await idb.get(k);if(r&&r.type.startsWith('image/')){const png=await cardPng(r.blob,cardLines(k),w,h),u=URL.createObjectURL(png);out.push(`<img class="mgimg" src="${u}"><a href="${u}" download="${k}-${curEp}.png">تنزيل بطاقة ${k==='intro'?'المقدمة':'الخاتمة'} (PNG)</a>`)}}
  $('mgOut').innerHTML=out.join('<br>')||'<p class="mut small">ارفع صورة للمقدمة أو الخاتمة أولاً.</p>'}
 
 /* ---------- الدمج بـ FFmpeg.wasm ---------- */
 const loadScript=src=>new Promise((res,rej)=>{const t=document.createElement('script');t.src=src;t.onload=res;t.onerror=()=>rej(new Error('تعذّر تحميل '+src));document.head.appendChild(t)});
 const blobURL=async(u,t)=>{const r=await fetch(u);if(!r.ok)throw new Error('تعذّر تحميل '+u);return URL.createObjectURL(new Blob([await r.arrayBuffer()],{type:t}))};
+const em=e=>String(e&&e.message||e);
 async function getFF(){
  if(FF)return FF;
  say('جارٍ تحميل أداة الدمج (نحو 30 ميغابايت في أول مرة فقط)...','busy');
- let local=false;try{local=(await fetch('ffmpeg/ffmpeg-core.wasm',{method:'HEAD'})).ok}catch{}
- const CDN='https://cdn.jsdelivr.net/npm/@ffmpeg/',A=local?'ffmpeg':CDN+'ffmpeg@0.12.10/dist/umd',C=local?'ffmpeg':CDN+'core@0.12.6/dist/umd';
- try{
-  await loadScript(A+'/ffmpeg.js');
-  const f=new FFmpegWASM.FFmpeg(),cfg={coreURL:await blobURL(C+'/ffmpeg-core.js','text/javascript'),wasmURL:await blobURL(C+'/ffmpeg-core.wasm','application/wasm')};
-  if(!local)cfg.classWorkerURL=await blobURL(A+'/814.ffmpeg.js','text/javascript');
-  f.on('progress',e=>onProg(e.progress));f.on('log',e=>logBuf.push(e.message));
-  await f.load(cfg);FF=f;return f;
- }catch(e){throw new Error('تعذّر تشغيل أداة الدمج: '+e.message+'\nجرّب وضع الملفات المحلية (راجع ffmpeg/README.txt) أو نزّل بطاقتي المقدمة والخاتمة وادمج المقاطع في CapCut.')}
+ const head=async u=>{try{return(await fetch(u,{method:'HEAD'})).ok}catch{return false}};
+ const CDN='https://cdn.jsdelivr.net/npm/@ffmpeg/',V='0.12.6',errs=[];
+ const localJs=await head('ffmpeg/ffmpeg.js'),localCore=await head('ffmpeg/ffmpeg-core.wasm'),CB=localCore?'ffmpeg':CDN+'core@'+V+'/dist/umd';
+ const mkCfg=async()=>({coreURL:await blobURL(CB+'/ffmpeg-core.js','text/javascript'),wasmURL:await blobURL(CB+'/ffmpeg-core.wasm','application/wasm')});
+ const st=[];
+ if(localJs)st.push(['ملفات الموقع',async()=>{await loadScript('ffmpeg/ffmpeg.js');return{cfg:await mkCfg()}}]);
+ st.push(['تعديل مسار العامل',async()=>{
+  const A=CDN+'ffmpeg@'+V+'/dist/umd',r=await fetch(A+'/ffmpeg.js');if(!r.ok)throw new Error('تعذّر تحميل ffmpeg.js');
+  const js=await r.text(),pat='new Worker(new URL(e.p+e.u(814),e.b),{type:void 0})';
+  if(!js.includes(pat))throw new Error('صيغة المكتبة اختلفت');
+  globalThis.__FFW=await blobURL(A+'/814.ffmpeg.js','text/javascript');
+  await loadScript(URL.createObjectURL(new Blob([js.replace(pat,'new Worker(globalThis.__FFW,{type:void 0})')],{type:'text/javascript'})));
+  return{cfg:await mkCfg()}}]);
+ st.push(['classWorkerURL',async()=>{
+  const A=CDN+'ffmpeg@0.12.10/dist/umd';await loadScript(A+'/ffmpeg.js');
+  const cfg=await mkCfg();cfg.classWorkerURL=await blobURL(A+'/814.ffmpeg.js','text/javascript');return{cfg}}]);
+ for(const [name,fn] of st){
+  let f=null;
+  try{
+   say(`تحميل أداة الدمج (الطريقة: ${name})...`,'busy');
+   const {cfg}=await fn();
+   f=new FFmpegWASM.FFmpeg();f.on('progress',e=>onProg(e.progress));f.on('log',e=>logBuf.push(e.message));
+   await Promise.race([f.load(cfg),new Promise((_,rej)=>setTimeout(()=>rej(new Error('انتهت مهلة التشغيل')),90000))]);
+   FF=f;return f;
+  }catch(e){errs.push(`• ${name}: ${em(e)}`);try{f&&f.terminate()}catch{}}
+ }
+ throw new Error('تعذّر تشغيل أداة الدمج.\n'+errs.join('\n')+'\nالحل الأثبت: ضع ملفي ffmpeg.js و814.ffmpeg.js في مجلد ffmpeg على موقعك (راجع ffmpeg/README.txt)، أو نزّل بطاقتي المقدمة والخاتمة وادمج المقاطع في CapCut.')
 }
 async function doMerge(){
- const ep=P.eps[curEp],{w:W,h:H}=dims(),segs=[];
+ const ep=P.eps[curEp],segs=[];let W,H;
  lock(true);bar(0);
  try{
   const clips=[];for(const x of ep.scenes){const r=await idb.get(rkey(x.n));if(r)clips.push(r)}
-  if(!clips.length)throw new Error('ارفع مقطعاً واحداً على الأقل.');
+  if(!clips.length)throw new Error('ارفع مقطعاً واحداً على الأقل.');({w:W,h:H}=outDims(clips));
   const I=await idb.get('intro'),O=await idb.get('outro'),plan=[];
   if(I)plan.push({r:I,card:'intro'});clips.forEach(r=>plan.push({r}));if(O)plan.push({r:O,card:'outro'});
   const f=await getFF();
