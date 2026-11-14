@@ -57,6 +57,7 @@ details p,.en{margin:6px 0;line-height:1.7;direction:ltr;text-align:left}
 .slot b{width:28px;color:var(--r);font-size:18px}.slot span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .slot button{padding:6px 10px;min-height:36px}.ok{color:var(--ok)}
 .prog{height:10px;background:var(--line);border-radius:999px;overflow:hidden;margin:10px 0}.prog i{display:block;height:100%;width:0;background:var(--g2);transition:width .3s}
+audio{width:100%;margin-top:8px}
 video,.mgimg{width:100%;border-radius:8px;margin-top:8px}
 .hide{display:none}
 </style>
@@ -67,6 +68,7 @@ video,.mgimg{width:100%;border-radius:8px;margin-top:8px}
 <div id="install"><span id="installMsg">ثبّت التطبيق على جهازك لتفتحه كأي تطبيق.</span><span><button id="installBtn">تثبيت</button><button class="x" id="installX" aria-label="إغلاق">✕</button></span></div>
 
 <section id="v-home">
+ <div id="plist"></div>
  <div class="card">
   <h2>معلومات عامة عن المسلسل</h2>
   <p class="mut small">اكتب ما تعرفه فقط، والباقي يبتكره التطبيق.</p>
@@ -93,14 +95,17 @@ video,.mgimg{width:100%;border-radius:8px;margin-top:8px}
 <div id="status"></div><div class="toast" id="toast"></div>
 
 <script>
-const APP_VERSION='1.7.1'; /* غيّره عند كل تحديث */
+const APP_VERSION='1.8.0'; /* غيّره عند كل تحديث */
 const $=id=>document.getElementById(id);
 $('ver').textContent='v'+APP_VERSION;
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const store={get:(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set:(k,v)=>localStorage.setItem(k,JSON.stringify(v))};
-let S=Object.assign({keys:'',model:'gemini-3.8-flash',modelCustom:'',fallback:'gemini-3.5-flash-lite',fbCustom:'',think:'low',placeImg:'off',mergeH:720,introSecs:4,outroSecs:4,teaser:'on',bulkSort:'name',darija:'full',dialogue:'clip',scenes:12,secs:10},store.get('settings',{}));
-let P=store.get('project',null),cool=store.get('cool2',{}),cur='home',prev='home',curEp=null,busyF=false,rot=0;
-const save=()=>store.set('project',P);
+let S=Object.assign({keys:'',model:'gemini-3.8-flash',modelCustom:'',fallback:'gemini-3.5-flash-lite',fbCustom:'',think:'low',placeImg:'off',mergeH:720,introSecs:4,outroSecs:4,teaser:'on',bulkOrder:'pick',musicVol:25,musicOn:'on',darija:'full',dialogue:'clip',scenes:12,secs:10},store.get('settings',{}));
+const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+let P=null,cool=store.get('cool2',{}),cur='home',prev='home',curEp=null,busyF=false,rot=0;
+const save=()=>{if(!P)return;if(!P.id)P.id=newId();store.set('proj:'+P.id,P);store.set('cur',P.id);const ix=store.get('idx',[]);if(!ix.includes(P.id)){ix.push(P.id);store.set('idx',ix)}};
+(()=>{const cid=store.get('cur',null);if(cid)P=store.get('proj:'+cid,null);const old=store.get('project',null);
+ if(old&&!store.get('idx',[]).length){old.id=old.id||newId();old.legacy=true;P=old;save();localStorage.removeItem('project')}})();
 const norm=m=>(m||'').trim().toLowerCase().replace(/^models\//,'').replace(/\s+/g,'-');
 const MODELS=[
  {id:'gemini-3.8-flash',sp:1,free:1,note:'الأذكى بين نماذج Flash، وهو الافتراضي المقترح'},
@@ -148,8 +153,8 @@ function say(m,t){const s=$('status');s.textContent=m;s.className=m?'on '+(t||''
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),1300)}
 function lock(b){busyF=b;document.querySelectorAll('button[data-act]').forEach(x=>x.disabled=b)}
 function show(v){cur=v;['home','series','ep','set','mg'].forEach(x=>$('v-'+x).classList.toggle('hide',x!==v));
- if(v==='series')renderSeries();if(v==='ep')renderEp();if(v==='set')renderSet();if(v==='mg')renderMg();scrollTo(0,0)}
-$('brand').onclick=()=>show(P?'series':'home');
+ if(v==='series')renderSeries();if(v==='ep')renderEp();if(v==='set')renderSet();if(v==='mg')renderMg();if(v==='home')renderHome();scrollTo(0,0)}
+$('brand').onclick=()=>show('home');
 $('gear').onclick=()=>{if(cur!=='set')prev=cur;show('set')};
 
 /* ---------- مجمّع المفاتيح ---------- */
@@ -213,15 +218,15 @@ ${SAFE}
 {"title":"","wardrobe":[{"name":"","outfit":""}],"scenes":[{"n":1,"summary":"سطر عربي","place":"","shot":{"size":"","angle":"","move":""},"cast":[{"name":"","pos":"","pose":"","facing":"","action":""}],"objects":[""],"action":"","dialogue":"","voice":"","end":""}]}`;
 
 /* ---------- إنشاء الدليل والحلقات ---------- */
-async function makeBible(f){
+async function makeBible(f){const isNew=!f;
  if(!f){f={name:$('f_name').value,idea:$('f_idea').value,age:$('f_age').value,genre:$('f_genre').value,place:$('f_place').value,eps:Math.min(20,Math.max(1,+$('f_eps').value||5)),ratio:$('f_ratio').value,style:$('f_style2').value.trim()||$('f_style').value,values:$('f_values').value,notes:$('f_notes').value};
   if(!f.idea.trim()&&!f.name.trim())return say('اكتب فكرة عامة أو اسماً على الأقل.','err')}
- if(P&&!confirm('سيُستبدل المشروع الحالي. متابعة؟'))return;
+ if(!isNew&&P&&!confirm('سيُستبدل المشروع الحالي. متابعة؟'))return;
  lock(true);
  try{
   const b=parse(await gem(bibleSys(f),`المعلومات العامة:\n${JSON.stringify(f,null,1)}`));
   if(!Array.isArray(b.episodes)||!b.episodes.length)throw new Error('الدليل ناقص. أعد المحاولة.');normBible(b);
-  P={form:f,bible:b,eps:{},copied:{}};save();show('series');say('تم إنشاء الدليل. راجعه ثم اختر حلقة.','ok');
+  P={id:isNew?newId():P.id,form:f,bible:b,eps:{},copied:{}};save();show('series');say('تم إنشاء الدليل. راجعه ثم اختر حلقة.','ok');
  }catch(e){say(e.message,'err')}
  lock(false);
 }
@@ -253,6 +258,10 @@ async function regen(b){
   if(k==='cd'){
    const key=b.dataset.code,list=P.bible.cards[key];
    const r=parse(await gem(regenCardSys(),`النوع: ${key==='intro'?'مقدمة':'خاتمة'}\nالمحاولات السابقة المرفوضة:\n${list.map((x,j)=>`[${j}] ${x}`).join('\n')}`));
+   if(!r.prompt)throw new Error('لم يُرجع Gemini برومبتاً. أعد المحاولة.');
+   list.push(r.prompt);save();renderSeries();say(`تم: النسخة ${list.length-1}`,'ok');
+  }else if(k==='mu'){
+   const list=P.bible.music,r=parse(await gem(regenMusicSys(),`المحاولات السابقة المرفوضة:\n${list.map((x,j)=>`[${j}] ${x}`).join('\n')}`));
    if(!r.prompt)throw new Error('لم يُرجع Gemini برومبتاً. أعد المحاولة.');
    list.push(r.prompt);save();renderSeries();say(`تم: النسخة ${list.length-1}`,'ok');
   }else if(k==='pl'){
@@ -302,6 +311,7 @@ function renderSeries(){
  ${hs.map((g,i)=>refBtn('heads'+i,headsPrompt(g,b),'صورة رؤوس الشخصيات'+(hs.length>1?` (${i+1} من ${hs.length})`:'')+' — '+g.map(c=>esc(c.name)).join('، '))).join('')||'<p class="mut small">لا توجد شخصيات. أعد توليد الدليل.</p>'}
  ${S.placeImg==='on'?(b.places||[]).map(placeBtn).join(''):''}</div>
  <div class="card"><h2>المقدمة والخاتمة (مرة واحدة لكل المسلسل)</h2>${cardsHtml(b)}</div>
+ <div class="card"><h2>الموسيقى الخلفية (مرة واحدة لكل المسلسل)</h2>${musicHtml(b)}</div>
  <div class="card"><h2>الأوصاف الثابتة</h2>${charList(b).map(c=>`<details style="display:block"><summary>${esc(c.name)}</summary><p>${esc(look(c))}</p></details>`).join('')}${(b.places||[]).map(p=>`<details style="display:block"><summary>📍 ${esc(p.name)}</summary><p>${esc(last(p.pv||[p.prompt]))}</p></details>`).join('')}</div>
  <div class="card"><h2>الحلقات</h2>${b.episodes.map(e=>`<div class="ep"><b>${e.n}. ${esc(e.title)}</b> <span class="mut small">${esc(e.value||'')}</span><textarea data-sum="${e.n}" rows="3">${esc(e.summary)}</textarea><div class="row"><button data-act="gen" data-n="${e.n}">${P.eps[e.n]?'افتح الحلقة':'ولّد الحلقة'}</button>${P.eps[e.n]?`<button class="alt" data-act="regen" data-n="${e.n}">أعد التوليد</button>`:''}</div></div>`).join('')}</div>`;
 }
@@ -352,14 +362,46 @@ document.addEventListener('click',e=>{
  const b=e.target.closest('[data-act]');if(!b||busyF)return;
  const n=+b.dataset.n,A={mk:()=>makeBible(),newb:()=>makeBible(P.form),new:()=>show('home'),
   gen:()=>{if(P.eps[n]){curEp=n;show('ep')}else makeEp(n)},regen:()=>makeEp(n),back:()=>show('series'),back2:()=>show(prev),
-  imp:()=>$('impf').click(),rg:()=>regen(b),mg:()=>show('mg'),back3:()=>show('ep'),cards:makeCards,merge:doMerge,prevc:previewCards,share:shareOut,clr:()=>clearRec(b.dataset.n),pick:()=>{upT=b.dataset.n;const u=$('upf');u.multiple=upT==='bulk';u.accept=(upT==='intro'||upT==='outro')?'image/*,video/*':'video/*';u.click()},models:listModels,wipe:()=>{if(confirm('حذف المشروع الحالي؟')){P=null;localStorage.removeItem('project');show('home')}},
+  imp:()=>$('impf').click(),rg:()=>regen(b),music:makeMusic,mg:()=>show('mg'),back3:()=>show('ep'),cards:makeCards,merge:doMerge,prevc:previewCards,share:shareOut,clr:()=>clearRec(b.dataset.n),pick:()=>{upT=b.dataset.n;const u=$('upf');u.multiple=upT==='bulk';u.accept=(upT==='intro'||upT==='outro')?'image/*,video/*':upT==='music'?'audio/*':'video/*';u.click()},models:listModels,wipe:()=>{if(P&&confirm('حذف المشروع الحالي؟'))delProject(P.id)},open:()=>openProject(b.dataset.n),delp:()=>{if(confirm('حذف هذا المشروع وكل ملفاته؟'))delProject(b.dataset.n)},
   exp:()=>{if(!P)return say('لا يوجد مشروع.','err');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(P,null,1)],{type:'application/json'}));a.download=(P.bible.title||'project')+'.json';a.click()}};
  A[b.dataset.act]?.();
 });
-document.addEventListener('input',e=>{const k=e.target.dataset.set;if(!k)return;S[k]=e.target.type==='number'?+e.target.value:e.target.value;store.set('settings',S);if(k==='keys')keyList();if(['model','fallback','think'].includes(k))renderSet()});
+document.addEventListener('input',e=>{const k=e.target.dataset.set;if(!k)return;S[k]=e.target.type==='number'?+e.target.value:e.target.value;store.set('settings',S);if(k==='keys')keyList();if(k==='musicVol'){const l=$('mvl');if(l)l.textContent=e.target.value+'%'}if(['model','fallback','think'].includes(k))renderSet()});
 document.addEventListener('change',e=>{const wn=e.target.dataset.ward;if(wn!==undefined&&P){P.eps[curEp].wardrobe[wn]=e.target.value;save();renderEp();return}
  const n=e.target.dataset.sum;if(n&&P){P.bible.episodes.find(x=>x.n==n).summary=e.target.value;save()}});
-$('impf').onchange=async e=>{try{const d=JSON.parse(await e.target.files[0].text());if(!d.bible?.episodes)throw 0;normBible(d.bible);P=d;P.eps=P.eps||{};P.copied=P.copied||{};save();show('series');say('تم الاستيراد.','ok')}catch{say('ملف غير صالح.','err')}};
+$('impf').onchange=async e=>{try{const d=JSON.parse(await e.target.files[0].text());if(!d.bible?.episodes)throw 0;normBible(d.bible);d.id=newId();P=d;P.eps=P.eps||{};P.copied=P.copied||{};save();show('series');say('تم الاستيراد.','ok')}catch{say('ملف غير صالح.','err')}};
+
+/* ---------- الموسيقى الخلفية ---------- */
+const musicText=()=>last(P.bible.music)+' Instrumental only, no vocals, no lyrics, no spoken voice. Smooth ending that loops seamlessly.';
+const musicHtml=b=>b.music?`<div class="pb" style="margin-bottom:8px"><button class="${cp('mu:'+(b.music.length-1))}" data-id="mu:${b.music.length-1}" data-text="${esc(musicText())}">${RISK.test(musicText())?'⚠ ':''}برومبت الموسيقى الخلفية${b.music.length>1?' · '+(b.music.length-1):''}</button>${sq('mu','','m')}</div><p class="mut small">ولّدها مرة واحدة وارفعها من شاشة «رفع المقاطع ودمجها» لتُستخدم في كل الحلقات، وتتحكم بمستوى صوتها قبل الدمج.</p>`:`<button data-act="music" style="width:100%">ولّد برومبت الموسيقى الخلفية</button>`;
+const musicSys=()=>`أنت مؤلف موسيقى أفلام. اكتب برومبتاً إنجليزياً واحداً لتوليد موسيقى خلفية مشتركة لكل حلقات المسلسل بأداة توليد موسيقى. أخرج JSON فقط: {"prompt":""}
+- موسيقى آلية بالكامل: بلا غناء ولا كلمات ولا أصوات بشرية.
+- المزاج والإيقاع والآلات مناسبة لقصة المسلسل وبيئته الجزائرية (مثل العود والقانون والناي والقصبة والدربوكة والبندير والمندول والوتريات الناعمة، اختر ما يناسب)، بإيقاع هادئ إلى متوسط وكثافة منخفضة كي يبقى الحوار واضحاً.
+- مدتها نحو دقيقتين.
+- لا أسماء فنانين ولا أغانٍ ولا ألحان معروفة ولا علامات تجارية.`;
+const regenMusicSys=()=>`أعد كتابة برومبت موسيقى خلفية رُفض توليده. أخرج JSON فقط: {"prompt":"..."}
+- موسيقى آلية فقط، بوصف عام للمزاج والآلات والإيقاع، بلا أسماء فنانين ولا أغانٍ ولا ألحان معروفة، وأكثر تحفظاً من كل محاولة سابقة. إنجليزي.`;
+async function makeMusic(){
+ lock(true);
+ try{const b=P.bible,r=parse(await gem(musicSys(),`عنوان المسلسل: ${b.title}\nالفكرة: ${b.logline}\nالفئة: ${P.form?.age||''} · ${P.form?.genre||''}\nالبيئة: ${P.form?.place||''}\nالأماكن: ${(b.places||[]).map(x=>x.name).join('، ')}`));
+  if(!r.prompt)throw new Error('رد غير مكتمل. أعد المحاولة.');b.music=[r.prompt];save();renderSeries();say('تم توليد برومبت الموسيقى.','ok')}
+ catch(e){say(e.message,'err')}
+ lock(false);
+}
+
+/* ---------- المشاريع ---------- */
+function renderHome(){
+ const L=store.get('idx',[]).map(id=>store.get('proj:'+id,null)).filter(Boolean);
+ $('plist').innerHTML=L.length?`<div class="card"><h2>مشاريعي</h2>${L.map(p=>{const tot=p.bible.episodes.length,dn=Object.keys(p.eps||{}).length;return `<div class="ep"><b>${esc(p.bible.title)}</b> <span class="mut small">${dn} من ${tot} حلقات${dn===tot?' · مكتمل ✓':''}</span><div class="row" style="margin-top:8px"><button data-act="open" data-n="${esc(p.id)}">فتح</button><button class="alt" data-act="delp" data-n="${esc(p.id)}">حذف</button></div></div>`}).join('')}</div>`:'';
+}
+function openProject(id){const p=store.get('proj:'+id,null);if(!p)return say('تعذّر فتح المشروع.','err');P=p;normBible(P.bible);store.set('cur',id);show('series')}
+async function delProject(id){
+ const p=store.get('proj:'+id,null);
+ if(p){for(const e of (p.bible?.episodes||[]))for(const sc of (p.eps?.[e.n]?.scenes||[]))await idb.del(`clip:${id}:${e.n}:${sc.n}`);for(const k of ['intro','outro','music'])await idb.del(`${k}:${id}`)}
+ localStorage.removeItem('proj:'+id);store.set('idx',store.get('idx',[]).filter(x=>x!==id));
+ if(P&&P.id===id){P=null;localStorage.removeItem('cur')}
+ show('home');
+}
 
 /* ---------- المقدمة والخاتمة ---------- */
 const cardText=k=>pre()+'Use the attached character head reference sheet (front and side portraits) only for faces and identity. '+last(P.bible.cards[k])+' Leave the top third of the frame as calm empty space. Do not show any text, letters or captions in the image.';
@@ -393,7 +435,9 @@ const idb=(()=>{
 const meta=b=>new Promise(res=>{const u=URL.createObjectURL(b);
  if(b.type.startsWith('image/')){const i=new Image();i.onload=()=>{res({w:i.naturalWidth,h:i.naturalHeight,dur:0});URL.revokeObjectURL(u)};i.onerror=()=>res({w:0,h:0,dur:0});i.src=u}
  else{const v=document.createElement('video');v.preload='metadata';v.onloadedmetadata=()=>{res({w:v.videoWidth,h:v.videoHeight,dur:v.duration});URL.revokeObjectURL(u)};v.onerror=()=>res({w:0,h:0,dur:0});v.src=u}});
-const rkey=n=>n==='intro'||n==='outro'?n:`clip:${curEp}:${n}`;
+const rkey=n=>['intro','outro','music'].includes(n)?`${n}:${P.id}`:`clip:${P.id}:${curEp}:${n}`;
+const lkey=n=>['intro','outro','music'].includes(n)?n:`clip:${curEp}:${n}`;
+const getRec=async n=>{let r=await idb.get(rkey(n));if(!r&&P.legacy)r=await idb.get(lkey(n));return r};
 const saveRec=async(k,f)=>{const m=await meta(f);await idb.put(k,{blob:f,name:f.name,size:f.size,type:f.type,...m})};
 let upT=null,onProg=()=>{},logBuf=[],FF=null,lastFile=null;
 $('upf').onchange=async e=>{
@@ -406,18 +450,18 @@ $('upf').onchange=async e=>{
   renderMg();
  }catch(err){say('تعذّر حفظ الملف: '+err.message,'err')}
 };
-async function clearRec(n){await idb.del(rkey(n));renderMg()}
+async function clearRec(n){await idb.del(rkey(n));if(P.legacy)await idb.del(lkey(n));renderMg()}
 const dims=()=>{const q=+S.mergeH||720,e=x=>Math.round(x/2)*2,r=P?.form?.ratio||'16:9';return r==='9:16'?{w:q,h:e(q*16/9)}:r==='1:1'?{w:q,h:q}:{w:e(q*16/9),h:q}};
 const outDims=rs=>{const r=rs.find(x=>x&&x.w>0&&x.h>0&&!x.type.startsWith('image/'));if(!r)return dims();const q=+S.mergeH||720,e=x=>Math.max(2,Math.round(x/2)*2);return r.w>=r.h?{w:e(q*r.w/r.h),h:q}:{w:q,h:e(q*r.h/r.w)}};
 const lastNum=n=>{const m=n.replace(/\.[^.]+$/,'').match(/\d+/g);return m?+m[m.length-1]:0};
-const bulkCmp=(a,b)=>S.bulkSort==='last'?lastNum(a.name)-lastNum(b.name):S.bulkSort==='time'?a.lastModified-b.lastModified:a.name.localeCompare(b.name,undefined,{numeric:true});
+const bulkCmp=(a,b)=>S.bulkOrder==='last'?lastNum(a.name)-lastNum(b.name):S.bulkOrder==='time'?a.lastModified-b.lastModified:S.bulkOrder==='name'?a.name.localeCompare(b.name,undefined,{numeric:true}):0;
 const fmt=r=>r?`<span class="ok">✓ ${esc(r.name)} · ${(r.size/1048576).toFixed(1)} MB${r.dur?' · '+r.dur.toFixed(1)+' ث':''}</span>`:'<span class="mut">لم يُرفع</span>';
 
 /* ---------- شاشة الرفع والدمج ---------- */
 async function renderMg(){
  const ep=P.eps[curEp],sc=ep.scenes,R=[];
- for(const x of sc)R.push(await idb.get(rkey(x.n)));
- const I=await idb.get('intro'),O=await idb.get('outro'),n=R.filter(Boolean).length,d=outDims(R),ar=d.w/d.h;
+ for(const x of sc)R.push(await getRec(x.n));
+ const I=await getRec('intro'),O=await getRec('outro'),M=await getRec('music'),n=R.filter(Boolean).length,d=outDims(R),ar=d.w/d.h;
  const bad=R.map((r,i)=>r&&r.w&&Math.abs(r.w/r.h-ar)>.05?sc[i].n:0).filter(Boolean);
  const missing=sc.filter((x,i)=>!R[i]).map(x=>x.n);
  $('v-mg').innerHTML=`<div class="card"><button class="alt" data-act="back3">‹ الحلقة</button><h2 style="margin-top:12px">رفع ودمج الحلقة ${curEp}: ${esc(ep.title)}</h2>
@@ -430,8 +474,14 @@ async function renderMg(){
  <label>مدة الخاتمة بالثواني (للصورة)</label><input type="number" data-set="outroSecs" min="2" max="10" value="${S.outroSecs}">
  <label>ذكر الحلقة القادمة في الخاتمة</label><select data-set="teaser">${opt('teaser',[['on','نعم'],['off','لا']])}</select>
  <button class="alt" data-act="prevc" style="width:100%;margin-top:10px">معاينة بطاقتي المقدمة والخاتمة</button></div>
+ <div class="card"><h2>الموسيقى الخلفية (مرة واحدة لكل الحلقات)</h2>
+ <div class="slot"><b>♪</b>${fmt(M)}<button data-act="pick" data-n="music">رفع</button><button class="alt" data-act="clr" data-n="music">✕</button></div>
+ ${M?`<audio controls src="${URL.createObjectURL(M.blob)}"></audio>`:''}
+ <label>إضافة الموسيقى للدمج</label><select data-set="musicOn">${opt('musicOn',[['on','نعم'],['off','لا']])}</select>
+ <label>مستوى صوت الموسيقى: <b id="mvl">${S.musicVol}%</b></label><input type="range" min="0" max="100" step="5" data-set="musicVol" value="${S.musicVol}">
+ <p class="mut small">تُمزج مع صوت المقاطع وتتكرر حتى نهاية الحلقة وتخفت في آخرها. ابدأ بـ 20 إلى 30% كي يبقى الحوار واضحاً.</p></div>
  <div class="card"><h2>المقاطع (${n} من ${sc.length})</h2>
- <label>ترتيب الرفع الجماعي</label><select data-set="bulkSort">${opt('bulkSort',[['name','باسم الملف'],['last','بآخر رقم في الاسم'],['time','بتاريخ الملف (الأقدم أولاً)']])}</select>
+ <label>ترتيب الرفع الجماعي</label><select data-set="bulkOrder">${opt('bulkOrder',[['pick','حسب ترتيب تحديدي للملفات'],['name','باسم الملف'],['last','بآخر رقم في الاسم'],['time','بتاريخ الملف (الأقدم أولاً)']])}</select>
  <button class="alt" data-act="pick" data-n="bulk" style="width:100%;margin-top:8px">رفع كل المقاطع دفعة واحدة (بترتيب أسمائها)</button>
  ${sc.map((x,i)=>`<div class="slot"><b>${x.n}</b>${fmt(R[i])}<button data-act="pick" data-n="${x.n}">رفع</button><button class="alt" data-act="clr" data-n="${x.n}">✕</button></div>`).join('')}
  ${missing.length?`<p class="mut small">⚠ ناقص: ${missing.join('، ')}. سيُدمج ما رُفع فقط.</p>`:''}${bad.length?`<p class="mut small">⚠ أبعاد المقاطع ${bad.join('، ')} تخالف أبعاد أول مقطع، وستُضاف أشرطة سوداء.</p>`:''}</div>
@@ -455,8 +505,8 @@ const cardLines=which=>{const nx=P.bible.episodes.find(e=>e.n===curEp+1),ep=P.ep
  if(which==='intro')return[{t:P.bible.title,k:.05},{t:'الحلقة '+curEp,k:.09},{t:ep.title,k:.06}];
  return S.teaser==='on'&&nx?[{t:'في الحلقة القادمة',k:.05},{t:nx.title,k:.08}]:[{t:P.bible.title,k:.07},{t:'شكراً لمشاهدتكم',k:.05}]};
 async function previewCards(){
- const rs=[];for(const x of P.eps[curEp].scenes)rs.push(await idb.get(rkey(x.n)));const {w,h}=outDims(rs),out=[];
- for(const k of ['intro','outro']){const r=await idb.get(k);if(r&&r.type.startsWith('image/')){const png=await cardPng(r.blob,cardLines(k),w,h),u=URL.createObjectURL(png);out.push(`<img class="mgimg" src="${u}"><a href="${u}" download="${k}-${curEp}.png">تنزيل بطاقة ${k==='intro'?'المقدمة':'الخاتمة'} (PNG)</a>`)}}
+ const rs=[];for(const x of P.eps[curEp].scenes)rs.push(await getRec(x.n));const {w,h}=outDims(rs),out=[];
+ for(const k of ['intro','outro']){const r=await getRec(k);if(r&&r.type.startsWith('image/')){const png=await cardPng(r.blob,cardLines(k),w,h),u=URL.createObjectURL(png);out.push(`<img class="mgimg" src="${u}"><a href="${u}" download="${k}-${curEp}.png">تنزيل بطاقة ${k==='intro'?'المقدمة':'الخاتمة'} (PNG)</a>`)}}
  $('mgOut').innerHTML=out.join('<br>')||'<p class="mut small">ارفع صورة للمقدمة أو الخاتمة أولاً.</p>'}
 
 /* ---------- الدمج بـ FFmpeg.wasm ---------- */
@@ -498,9 +548,9 @@ async function doMerge(){
  const ep=P.eps[curEp],segs=[];let W,H;
  lock(true);bar(0);
  try{
-  const clips=[];for(const x of ep.scenes){const r=await idb.get(rkey(x.n));if(r)clips.push(r)}
+  const clips=[];for(const x of ep.scenes){const r=await getRec(x.n);if(r)clips.push(r)}
   if(!clips.length)throw new Error('ارفع مقطعاً واحداً على الأقل.');({w:W,h:H}=outDims(clips));
-  const I=await idb.get('intro'),O=await idb.get('outro'),plan=[];
+  const I=await getRec('intro'),O=await getRec('outro'),M=S.musicOn==='on'?await getRec('music'):null,plan=[];
   if(I)plan.push({r:I,card:'intro'});clips.forEach(r=>plan.push({r}));if(O)plan.push({r:O,card:'outro'});
   const f=await getFF();
   const run=async a=>{const c=await f.exec(a);if(c!==0)throw new Error('فشلت معالجة أحد المقاطع (رمز '+c+'). جرّب دقة أقل من الإعدادات.')};
@@ -526,8 +576,17 @@ async function doMerge(){
   say('جارٍ تجميع الحلقة...','busy');onProg=()=>{};
   await f.writeFile('list.txt',segs.map(x=>`file '${x}'`).join('\n'));
   await run(['-f','concat','-safe','0','-i','list.txt','-c','copy','-movflags','+faststart','final.mp4']);
-  const data=await f.readFile('final.mp4');
-  for(const x of segs)await f.deleteFile(x);await f.deleteFile('list.txt');await f.deleteFile('final.mp4');
+  let outName='final.mp4';
+  if(M){
+   say('جارٍ إضافة الموسيقى الخلفية...','busy');onProg=p=>bar(.95+.05*Math.min(1,Math.max(0,p||0)));
+   const T=plan.reduce((a,it)=>a+(it.card&&it.r.type.startsWith('image/')?(+(it.card==='intro'?S.introSecs:S.outroSecs)||4):(it.r.dur||0)),0),ext=((M.name.match(/\.(\w+)$/)||[])[1]||'mp3').toLowerCase(),mf='m.'+ext,vol=Math.max(0,Math.min(100,+S.musicVol))/100;
+   await f.writeFile(mf,new Uint8Array(await M.blob.arrayBuffer()));
+   const fade=T>6?`,afade=t=out:st=${(T-2.5).toFixed(2)}:d=2.5`:'';
+   await run(['-i','final.mp4','-stream_loop','-1','-i',mf,'-filter_complex',`[0:a]volume=2[a0];[1:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=${(vol*2).toFixed(3)}${fade}[a1];[a0][a1]amix=inputs=2:duration=first:dropout_transition=0,alimiter=limit=0.95[a]`,'-map','0:v:0','-map','[a]','-c:v','copy','-c:a','aac','-b:a','160k','-shortest','-movflags','+faststart','out2.mp4']);
+   await f.deleteFile(mf);outName='out2.mp4';
+  }
+  const data=await f.readFile(outName);
+  for(const x of segs)await f.deleteFile(x);await f.deleteFile('list.txt');await f.deleteFile('final.mp4');if(outName!=='final.mp4')await f.deleteFile(outName);
   const name=`${P.bible.title}-الحلقة-${curEp}.mp4`;
   lastFile=new File([data],name,{type:'video/mp4'});const u=URL.createObjectURL(lastFile);
   bar(1);$('mgOut').innerHTML=`<video controls playsinline src="${u}"></video><div class="row" style="margin-top:10px"><a href="${u}" download="${esc(name)}" style="text-decoration:none"><button style="width:100%">تنزيل الحلقة</button></a><button class="alt" data-act="share">مشاركة</button></div>`;
@@ -538,7 +597,7 @@ async function doMerge(){
 async function shareOut(){if(!lastFile)return;try{await navigator.share({files:[lastFile],title:lastFile.name})}catch{say('المشاركة غير متاحة هنا، استخدم زر التنزيل.','err')}}
 
 $('status').onclick=()=>say('');
-show(P?'series':'home');
+show('home');
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js?v='+APP_VERSION).catch(()=>{});
 </script>
 </body>
